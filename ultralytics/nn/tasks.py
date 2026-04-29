@@ -36,6 +36,7 @@ from ultralytics.nn.modules import (
     C2fPSA,
     C3Ghost,
     C3k2,
+    C3k2_Star,
     C3x,
     CBFuse,
     CBLinear,
@@ -66,6 +67,7 @@ from ultralytics.nn.modules import (
     SCDown,
     Segment,
     Segment26,
+    StarBlock,
     TorchVision,
     WorldDetect,
     YOLOEDetect,
@@ -1591,6 +1593,7 @@ def parse_model(d, ch, verbose=True):
             C2,
             C2f,
             C3k2,
+            C3k2_Star,
             RepNCSPELAN4,
             ELAN1,
             ADown,
@@ -1617,6 +1620,7 @@ def parse_model(d, ch, verbose=True):
             C2,
             C2f,
             C3k2,
+            C3k2_Star,
             C2fAttn,
             C3,
             C3TR,
@@ -1655,6 +1659,10 @@ def parse_model(d, ch, verbose=True):
                 args.insert(2, n)  # number of repeats
                 n = 1
             if m is C3k2:  # for M/L/X sizes
+                legacy = False
+                if scale in "mlx":
+                    args[3] = True
+            if m is C3k2_Star:  # for M/L/X sizes
                 legacy = False
                 if scale in "mlx":
                     args[3] = True

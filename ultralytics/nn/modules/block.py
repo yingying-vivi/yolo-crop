@@ -37,7 +37,9 @@ __all__ = (
     "C2fPSA",
     "C3Ghost",
     "C3k2",
+    "C3k2_Star",
     "C3x",
+    "StarBlock",
     "CBFuse",
     "CBLinear",
     "ContrastiveHead",
@@ -1103,6 +1105,58 @@ class C3k2(C2f):
             if c3k
             else Bottleneck(self.c, self.c, shortcut, g)
             for _ in range(n)
+        )
+
+
+class DropPath(nn.Module):
+    def __init__(self, drop_prob=0.0, scale_by_keep=True):
+        super().__init__()
+        self.drop_prob = drop_prob
+        self.scale_by_keep = scale_by_keep
+
+    def forward(self, x):
+        if self.drop_prob == 0.0 or not self.training:
+            return x
+        keep_prob = 1 - self.drop_prob
+        shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+        random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
+        if keep_prob > 0.0 and self.scale_by_keep:
+            random_tensor.div_(keep_prob)
+        return x * random_tensor
+
+
+class StarBlock(nn.Module):
+    def __init__(self, dim, mlp_ratio=3, drop_path=0.0):
+        super().__init__()
+        self.dwconv = nn.Sequential(
+            nn.Conv2d(dim, dim, 7, 1, (7 - 1) // 2, groups=dim),
+            nn.BatchNorm2d(dim),
+        )
+        self.f1 = nn.Conv2d(dim, mlp_ratio * dim, 1)
+        self.f2 = nn.Conv2d(dim, mlp_ratio * dim, 1)
+        self.g = nn.Sequential(
+            nn.Conv2d(mlp_ratio * dim, dim, 1),
+            nn.BatchNorm2d(dim),
+        )
+        self.dwconv2 = nn.Conv2d(dim, dim, 7, 1, (7 - 1) // 2, groups=dim)
+        self.act = nn.ReLU6()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+
+    def forward(self, x):
+        input = x
+        x = self.dwconv(x)
+        x1, x2 = self.f1(x), self.f2(x)
+        x = self.act(x1) * x2
+        x = self.dwconv2(self.g(x))
+        x = input + self.drop_path(x)
+        return x
+
+
+class C3k2_Star(C2f):
+    def __init__(self, c1, c2, n=1, c3k=False, e=0.5, g=1, shortcut=True):
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(
+            C3k(self.c, self.c, 2, shortcut, g) if c3k else StarBlock(self.c) for _ in range(n)
         )
 
 
