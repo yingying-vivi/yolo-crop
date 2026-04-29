@@ -581,6 +581,12 @@ class SegmentationModel(DetectionModel):
         return E2ELoss(self, v8SegmentationLoss) if getattr(self, "end2end", False) else v8SegmentationLoss(self)
 
 
+class FieldSegmentationModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import FieldSegmentationLoss
+        return FieldSegmentationLoss(self)
+
+
 class PoseModel(DetectionModel):
     """YOLO pose model.
 

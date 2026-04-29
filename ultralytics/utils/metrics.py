@@ -147,6 +147,35 @@ def bbox_iou(
     return iou  # IoU
 
 
+def boundary_iou(box1, box2, erosion_ratio=0.2, xywh=False, eps=1e-7):
+    b1_x1, b1_y1, b1_x2, b1_y2 = box1.chunk(4, -1) if not xywh else _xywh_to_xyxy_chunks(box1)
+    b2_x1, b2_y1, b2_x2, b2_y2 = box2.chunk(4, -1) if not xywh else _xywh_to_xyxy_chunks(box2)
+    w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
+    w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
+    e_w1, e_h1 = w1 * erosion_ratio / 2, h1 * erosion_ratio / 2
+    e_w2, e_h2 = w2 * erosion_ratio / 2, h2 * erosion_ratio / 2
+    eb1_x1, eb1_x2 = b1_x1 + e_w1, b1_x2 - e_w1
+    eb1_y1, eb1_y2 = b1_y1 + e_h1, b1_y2 - e_h1
+    eb2_x1, eb2_x2 = b2_x1 + e_w2, b2_x2 - e_w2
+    eb2_y1, eb2_y2 = b2_y1 + e_h2, b2_y2 - e_h2
+    inter_inner = (eb1_x2.minimum(eb2_x2) - eb1_x1.maximum(eb2_x1)).clamp_(0) * (
+        eb1_y2.minimum(eb2_y2) - eb1_y1.maximum(eb2_y1)
+    ).clamp_(0)
+    inter_outer = (b1_x2.minimum(b2_x2) - b1_x1.maximum(b2_x1)).clamp_(0) * (
+        b1_y2.minimum(b2_y2) - b1_y1.maximum(b2_y1)
+    ).clamp_(0)
+    inter_boundary = inter_outer - inter_inner
+    area1_boundary = w1 * h1 - (b1_x2 - e_w1 - b1_x1 - e_w1) * (b1_y2 - e_h1 - b1_y1 - e_h1)
+    area2_boundary = w2 * h2 - (b2_x2 - e_w2 - b2_x1 - e_w2) * (b2_y2 - e_h2 - b2_y1 - e_h2)
+    union_boundary = area1_boundary + area2_boundary - inter_boundary + eps
+    return inter_boundary / union_boundary
+
+
+def _xywh_to_xyxy_chunks(box):
+    x, y, w, h = box.chunk(4, -1)
+    return x - w / 2, y - h / 2, x + w / 2, y + h / 2
+
+
 def mask_iou(mask1: torch.Tensor, mask2: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
     """Calculate masks IoU.
 

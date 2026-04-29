@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ultralytics.utils.metrics import OKS_SIGMA, RLE_WEIGHT
+from ultralytics.utils.metrics import OKS_SIGMA, RLE_WEIGHT, boundary_iou, bbox_iou
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
 from ultralytics.utils.torch_utils import autocast
@@ -632,6 +632,170 @@ class v8SegmentationLoss(v8DetectionLoss):
                 loss += (proto * 0).sum() + (pred_masks * 0).sum()  # inf sums may lead to nan loss
 
         return loss / fg_mask.sum()
+
+
+class BoundaryBboxLoss(BboxLoss):
+    def __init__(self, reg_max=16, erosion_ratio=0.2, boundary_weight=0.5):
+        super().__init__(reg_max)
+        self.erosion_ratio = erosion_ratio
+        self.boundary_weight = boundary_weight
+
+    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes,
+                target_scores, target_scores_sum, fg_mask, imgsz, stride):
+        weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+        iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
+        biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask],
+                            erosion_ratio=self.erosion_ratio, xywh=False)
+        combined = iou * (1 - self.boundary_weight) + biou * self.boundary_weight
+        loss_iou = ((1.0 - combined) * weight).sum() / target_scores_sum
+
+        if self.dfl_loss:
+            target_ltrb = bbox2dist(anchor_points, target_bboxes, self.dfl_loss.reg_max - 1)
+            loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
+            loss_dfl = loss_dfl.sum() / target_scores_sum
+        else:
+            target_ltrb = bbox2dist(anchor_points, target_bboxes)
+            target_ltrb = target_ltrb * stride
+            target_ltrb[..., 0::2] /= imgsz[1]
+            target_ltrb[..., 1::2] /= imgsz[0]
+            pred_dist = pred_dist * stride
+            pred_dist[..., 0::2] /= imgsz[1]
+            pred_dist[..., 1::2] /= imgsz[0]
+            loss_dfl = (
+                F.l1_loss(pred_dist[fg_mask], target_ltrb[fg_mask], reduction="none").mean(-1, keepdim=True) * weight
+            )
+            loss_dfl = loss_dfl.sum() / target_scores_sum
+
+        return loss_iou, loss_dfl
+
+
+class BoundaryMaskLoss(nn.Module):
+    def __init__(self, boundary_width=3, boundary_weight=0.5):
+        super().__init__()
+        self.boundary_width = boundary_width
+        self.boundary_weight = boundary_weight
+
+    def extract_boundary(self, mask):
+        kernel = torch.ones(1, 1, 2 * self.boundary_width + 1, 2 * self.boundary_width + 1, device=mask.device)
+        eroded = F.conv2d(mask.unsqueeze(1).float(), kernel, padding=self.boundary_width) < kernel.sum()
+        boundary = mask.float() - eroded.float().squeeze(1)
+        return boundary.clamp(0, 1)
+
+    def forward(self, pred_mask, gt_mask):
+        pred_sigmoid = pred_mask.sigmoid()
+        gt_boundary = self.extract_boundary(gt_mask)
+        pred_boundary = self.extract_boundary(pred_sigmoid)
+        inter = (gt_boundary * pred_boundary).sum(dim=(1, 2))
+        union = (gt_boundary + pred_boundary).clamp(0, 1).sum(dim=(1, 2)) + 1e-7
+        biou = inter / union
+        bce_boundary = F.binary_cross_entropy_with_logits(pred_mask, gt_boundary, reduction="none")
+        weighted_bce = bce_boundary * (1 + self.boundary_weight * gt_boundary)
+        loss_bce = weighted_bce.mean(dim=(1, 2))
+        return ((1 - biou) + loss_bce).mean()
+
+
+class FieldSegmentationLoss(v8SegmentationLoss):
+    def __init__(self, model, tal_topk=10, tal_topk2=None,
+                 erosion_ratio=0.2, boundary_bbox_weight=0.5,
+                 boundary_width=3, boundary_mask_weight=2.0,
+                 dynamic_decay_epochs=50):
+        super().__init__(model, tal_topk, tal_topk2)
+        self.bbox_loss = BoundaryBboxLoss(
+            model.model[-1].reg_max, erosion_ratio=erosion_ratio, boundary_weight=boundary_bbox_weight
+        ).to(self.device)
+        self.boundary_mask_loss = BoundaryMaskLoss(
+            boundary_width=boundary_width, boundary_weight=boundary_mask_weight
+        ).to(self.device)
+        self.dynamic_decay_epochs = dynamic_decay_epochs
+        self._epoch_count = 0
+
+    def decay(self):
+        self._epoch_count += 1
+        progress = min(self._epoch_count / self.dynamic_decay_epochs, 1.0)
+        boundary_scale = progress
+        box_scale = 1.0 - 0.3 * progress
+        return box_scale, boundary_scale
+
+    def loss(self, preds, batch):
+        pred_masks, proto = preds["mask_coefficient"].permute(0, 2, 1).contiguous(), preds["proto"]
+        loss = torch.zeros(7, device=self.device)
+        if isinstance(proto, tuple) and len(proto) == 2:
+            proto, pred_semseg = proto
+        else:
+            pred_semseg = None
+
+        box_scale, boundary_scale = self.decay()
+
+        (fg_mask, target_gt_idx, target_bboxes, _, _), det_loss, _ = self.get_assigned_targets_and_loss(preds, batch)
+        loss[0], loss[2], loss[3] = det_loss[0] * box_scale, det_loss[1], det_loss[2]
+
+        batch_size, _, mask_h, mask_w = proto.shape
+        if fg_mask.sum():
+            masks = batch["masks"].to(self.device).float()
+            if tuple(masks.shape[-2:]) != (mask_h, mask_w):
+                proto = F.interpolate(proto, masks.shape[-2:], mode="bilinear", align_corners=False)
+
+            imgsz = (
+                torch.tensor(preds["feats"][0].shape[2:], device=self.device, dtype=pred_masks.dtype) * self.stride[0]
+            )
+            loss[1] = self.calculate_segmentation_loss(
+                fg_mask, masks, target_gt_idx, target_bboxes, batch["batch_idx"].view(-1, 1), proto, pred_masks, imgsz,
+            )
+
+            pred_bboxes = self.bbox_decode(
+                make_anchors(preds["feats"], self.stride, 0.5)[0],
+                preds["boxes"].permute(0, 2, 1).contiguous(),
+            )
+            biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask],
+                                erosion_ratio=0.2, xywh=False)
+            target_scores_sum = max(self.bce(preds["scores"].permute(0, 2, 1), torch.zeros_like(preds["scores"].permute(0, 2, 1))).sum(), 1)
+            weight = torch.ones(fg_mask.sum(), 1, device=self.device)
+            loss[5] = ((1.0 - biou) * weight).sum() / target_scores_sum
+
+            target_bboxes_normalized = target_bboxes / imgsz[[1, 0, 1, 0]]
+            mxyxy = target_bboxes_normalized * torch.tensor([mask_w, mask_h, mask_w, mask_h], device=proto.device)
+            boundary_mask_total = 0
+            n_boundary = 0
+            for i, single_i in enumerate(zip(fg_mask, target_gt_idx, pred_masks, proto, mxyxy, masks)):
+                fg_mask_i, target_gt_idx_i, pred_masks_i, proto_i, mxyxy_i, masks_i = single_i
+                if fg_mask_i.any():
+                    mask_idx = target_gt_idx_i[fg_mask_i]
+                    if self.overlap:
+                        gt_mask = masks_i == (mask_idx + 1).view(-1, 1, 1)
+                        gt_mask = gt_mask.float()
+                    else:
+                        gt_mask = masks[batch["batch_idx"].view(-1) == i][mask_idx]
+                    pred_mask = torch.einsum("in,nhw->ihw", pred_masks_i[fg_mask_i], proto_i)
+                    boundary_mask_total += self.boundary_mask_loss(pred_mask, gt_mask)
+                    n_boundary += 1
+            if n_boundary > 0:
+                loss[6] = boundary_mask_total / n_boundary
+
+            if pred_semseg is not None:
+                sem_masks = batch["sem_masks"].to(self.device)
+                sem_masks = F.one_hot(sem_masks.long(), num_classes=self.nc).permute(0, 3, 1, 2).float()
+                if self.overlap:
+                    mask_zero = masks == 0
+                    sem_masks[mask_zero.unsqueeze(1).expand_as(sem_masks)] = 0
+                else:
+                    batch_idx = batch["batch_idx"].view(-1)
+                    for i_b in range(batch_size):
+                        instance_mask_i = masks[batch_idx == i_b]
+                        if len(instance_mask_i) == 0:
+                            continue
+                        sem_masks[i_b, :, instance_mask_i.sum(dim=0) == 0] = 0
+                loss[4] = self.bcedice_loss(pred_semseg, sem_masks)
+                loss[4] *= self.hyp.box
+        else:
+            loss[1] += (proto * 0).sum() + (pred_masks * 0).sum()
+            if pred_semseg is not None:
+                loss[4] += (pred_semseg * 0).sum()
+
+        loss[1] *= self.hyp.box
+        loss[5] *= self.hyp.box * boundary_scale
+        loss[6] *= boundary_scale
+
+        return loss * batch_size, loss.detach()
 
 
 class v8PoseLoss(v8DetectionLoss):
