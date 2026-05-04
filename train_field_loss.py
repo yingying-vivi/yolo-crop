@@ -1,9 +1,9 @@
-from ultralytics import YOLO
-from ultralytics.nn.tasks import FieldSegmentationModel
-from ultralytics.models.yolo.segment import SegmentationTrainer
-from ultralytics.utils import DEFAULT_CFG, RANK
 from copy import copy
-from pathlib import Path
+
+from ultralytics import YOLO
+from ultralytics.models.yolo.segment import SegmentationTrainer
+from ultralytics.nn.tasks import FieldSegmentationModel
+from ultralytics.utils import RANK
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/paddy_field/data.yaml"
 EPOCHS = 100
@@ -15,7 +15,9 @@ MODEL_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/ultralytics/cfg/m
 
 class FieldSegmentationTrainer(SegmentationTrainer):
     def get_model(self, cfg=None, weights=None, verbose=True):
-        model = FieldSegmentationModel(cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1)
+        model = FieldSegmentationModel(
+            cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1
+        )
         if weights:
             model.load(weights)
         return model
@@ -23,6 +25,7 @@ class FieldSegmentationTrainer(SegmentationTrainer):
     def get_validator(self):
         self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss", "sem_loss", "biou_loss", "bmask_loss"
         from ultralytics.models.yolo.segment import SegmentationValidator
+
         return SegmentationValidator(
             self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
         )

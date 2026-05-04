@@ -68,7 +68,6 @@ from ultralytics.nn.modules import (
     SCDown,
     Segment,
     Segment26,
-    StarBlock,
     TorchVision,
     WorldDetect,
     YOLOEDetect,
@@ -584,6 +583,7 @@ class SegmentationModel(DetectionModel):
 class FieldSegmentationModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import FieldSegmentationLoss
+
         return FieldSegmentationLoss(self)
 
 

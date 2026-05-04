@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ultralytics.utils.metrics import OKS_SIGMA, RLE_WEIGHT, boundary_iou, bbox_iou
+from ultralytics.utils.metrics import OKS_SIGMA, RLE_WEIGHT, bbox_iou, boundary_iou
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
 from ultralytics.utils.torch_utils import autocast
@@ -640,12 +640,21 @@ class BoundaryBboxLoss(BboxLoss):
         self.erosion_ratio = erosion_ratio
         self.boundary_weight = boundary_weight
 
-    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes,
-                target_scores, target_scores_sum, fg_mask, imgsz, stride):
+    def forward(
+        self,
+        pred_dist,
+        pred_bboxes,
+        anchor_points,
+        target_bboxes,
+        target_scores,
+        target_scores_sum,
+        fg_mask,
+        imgsz,
+        stride,
+    ):
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
-        biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask],
-                            erosion_ratio=self.erosion_ratio, xywh=False)
+        biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], erosion_ratio=self.erosion_ratio, xywh=False)
         combined = iou * (1 - self.boundary_weight) + biou * self.boundary_weight
         loss_iou = ((1.0 - combined) * weight).sum() / target_scores_sum
 
@@ -695,10 +704,17 @@ class BoundaryMaskLoss(nn.Module):
 
 
 class FieldSegmentationLoss(v8SegmentationLoss):
-    def __init__(self, model, tal_topk=10, tal_topk2=None,
-                 erosion_ratio=0.2, boundary_bbox_weight=0.5,
-                 boundary_width=3, boundary_mask_weight=2.0,
-                 dynamic_decay_epochs=50):
+    def __init__(
+        self,
+        model,
+        tal_topk=10,
+        tal_topk2=None,
+        erosion_ratio=0.2,
+        boundary_bbox_weight=0.5,
+        boundary_width=3,
+        boundary_mask_weight=2.0,
+        dynamic_decay_epochs=50,
+    ):
         super().__init__(model, tal_topk, tal_topk2)
         self.bbox_loss = BoundaryBboxLoss(
             model.model[-1].reg_max, erosion_ratio=erosion_ratio, boundary_weight=boundary_bbox_weight
@@ -739,16 +755,24 @@ class FieldSegmentationLoss(v8SegmentationLoss):
                 torch.tensor(preds["feats"][0].shape[2:], device=self.device, dtype=pred_masks.dtype) * self.stride[0]
             )
             loss[1] = self.calculate_segmentation_loss(
-                fg_mask, masks, target_gt_idx, target_bboxes, batch["batch_idx"].view(-1, 1), proto, pred_masks, imgsz,
+                fg_mask,
+                masks,
+                target_gt_idx,
+                target_bboxes,
+                batch["batch_idx"].view(-1, 1),
+                proto,
+                pred_masks,
+                imgsz,
             )
 
             pred_bboxes = self.bbox_decode(
                 make_anchors(preds["feats"], self.stride, 0.5)[0],
                 preds["boxes"].permute(0, 2, 1).contiguous(),
             )
-            biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask],
-                                erosion_ratio=0.2, xywh=False)
-            target_scores_sum = max(self.bce(preds["scores"].permute(0, 2, 1), torch.zeros_like(preds["scores"].permute(0, 2, 1))).sum(), 1)
+            biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], erosion_ratio=0.2, xywh=False)
+            target_scores_sum = max(
+                self.bce(preds["scores"].permute(0, 2, 1), torch.zeros_like(preds["scores"].permute(0, 2, 1))).sum(), 1
+            )
             weight = torch.ones(fg_mask.sum(), 1, device=self.device)
             loss[5] = ((1.0 - biou) * weight).sum() / target_scores_sum
 
@@ -757,7 +781,7 @@ class FieldSegmentationLoss(v8SegmentationLoss):
             boundary_mask_total = 0
             n_boundary = 0
             for i, single_i in enumerate(zip(fg_mask, target_gt_idx, pred_masks, proto, mxyxy, masks)):
-                fg_mask_i, target_gt_idx_i, pred_masks_i, proto_i, mxyxy_i, masks_i = single_i
+                fg_mask_i, target_gt_idx_i, pred_masks_i, proto_i, _mxyxy_i, masks_i = single_i
                 if fg_mask_i.any():
                     mask_idx = target_gt_idx_i[fg_mask_i]
                     if self.overlap:
