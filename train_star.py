@@ -10,9 +10,9 @@ MODEL_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/ultralytics/cfg/m
 
 
 def train_star_model():
-    print(f"\n{'='*60}")
-    print(f"Training YOLO11-StarBlock (backbone replaced)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("Training YOLO11-StarBlock (backbone replaced)")
+    print(f"{'=' * 60}\n")
     model = YOLO(MODEL_YAML)
     results = model.train(
         data=DATA_YAML,
@@ -26,7 +26,7 @@ def train_star_model():
         workers=8,
         seed=42,
     )
-    print(f"\nYOLO11-StarBlock training complete!")
+    print("\nYOLO11-StarBlock training complete!")
     return results
 
 

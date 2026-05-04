@@ -16,11 +16,11 @@ __all__ = (
     "C1",
     "C2",
     "C2PSA",
-    "ECA",
     "C3",
     "C3TR",
     "CIB",
     "DFL",
+    "ECA",
     "ELAN1",
     "PSA",
     "SPP",
@@ -40,7 +40,6 @@ __all__ = (
     "C3k2",
     "C3k2_Star",
     "C3x",
-    "StarBlock",
     "CBFuse",
     "CBLinear",
     "ContrastiveHead",
@@ -54,6 +53,7 @@ __all__ = (
     "RepVGGDW",
     "ResNetLayer",
     "SCDown",
+    "StarBlock",
     "TorchVision",
 )
 
@@ -1170,9 +1170,7 @@ class StarBlock(nn.Module):
 class C3k2_Star(C2f):
     def __init__(self, c1, c2, n=1, c3k=False, e=0.5, g=1, shortcut=True):
         super().__init__(c1, c2, n, shortcut, g, e)
-        self.m = nn.ModuleList(
-            C3k(self.c, self.c, 2, shortcut, g) if c3k else StarBlock(self.c) for _ in range(n)
-        )
+        self.m = nn.ModuleList(C3k(self.c, self.c, 2, shortcut, g) if c3k else StarBlock(self.c) for _ in range(n))
 
 
 class C3k(C3):

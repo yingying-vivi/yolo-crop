@@ -1,12 +1,12 @@
-import json
 import glob
+import json
 import os
-import shutil
 import random
-import numpy as np
-from pathlib import Path
+import shutil
 
-LABELME_DIR = "/home/fumu/conda_disk/baiduwangpan/无人机视角空田水田稻田识别分割数据集labelme格式528张3类别/labelme_data"
+LABELME_DIR = (
+    "/home/fumu/conda_disk/baiduwangpan/无人机视角空田水田稻田识别分割数据集labelme格式528张3类别/labelme_data"
+)
 OUTPUT_DIR = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/paddy_field"
 
 CLASS_MAP = {"empty_field": 0, "flooded_field": 1, "rice_field": 2}
@@ -49,11 +49,11 @@ def main():
     n = len(names)
     n_train = int(n * TRAIN_RATIO)
     n_val = int(n * VAL_RATIO)
-    n_test = n - n_train - n_val
+    n - n_train - n_val
 
     train_names = names[:n_train]
-    val_names = names[n_train:n_train + n_val]
-    test_names = names[n_train + n_val:]
+    val_names = names[n_train : n_train + n_val]
+    test_names = names[n_train + n_val :]
 
     print(f"Train: {len(train_names)}, Val: {len(val_names)}, Test: {len(test_names)}")
 
@@ -81,9 +81,9 @@ def main():
     yaml_path = os.path.join(OUTPUT_DIR, "data.yaml")
     with open(yaml_path, "w") as f:
         f.write(f"path: {OUTPUT_DIR}\n")
-        f.write(f"train: images/train\n")
-        f.write(f"val: images/val\n")
-        f.write(f"test: images/test\n")
+        f.write("train: images/train\n")
+        f.write("val: images/val\n")
+        f.write("test: images/test\n")
         f.write(f"nc: {len(CLASS_MAP)}\n")
         f.write(f"names: {list(CLASS_MAP.keys())}\n")
 

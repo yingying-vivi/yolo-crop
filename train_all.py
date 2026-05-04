@@ -8,15 +8,15 @@ DEVICE = 0
 
 MODELS = {
     "yolov8": "yolov8n-seg.pt",
-    #"yolov11": "yolo11n-seg.pt",
-    #"yolov26": "yolo26n-seg.pt",
+    # "yolov11": "yolo11n-seg.pt",
+    # "yolov26": "yolo26n-seg.pt",
 }
 
 
 def train_model(name, model_path):
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Training {name} ({model_path})")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     model = YOLO(model_path)
     results = model.train(
         data=DATA_YAML,
