@@ -10,6 +10,8 @@ EPOCHS = 100
 IMGSZ = 640
 BATCH = 8
 DEVICE = 0
+
+PRETRAINED = "yolo11n-seg.pt"
 MODEL_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/ultralytics/cfg/models/11/yolo11-seg.yaml"
 
 
@@ -30,6 +32,7 @@ class FieldSegmentationTrainer(SegmentationTrainer):
 
 if __name__ == "__main__":
     model = YOLO(MODEL_YAML)
+    model.load(PRETRAINED)
     model.trainer = FieldSegmentationTrainer
     results = model.train(
         data=DATA_YAML,
@@ -38,7 +41,7 @@ if __name__ == "__main__":
         batch=BATCH,
         device=DEVICE,
         project="/home/fumu/xyy/ultralytics-crop/ultralytics-crop/runs/segment",
-        name="yolov11_field_loss",
+        name="yolov11_field_loss_pretrained",
         exist_ok=True,
         workers=8,
         seed=42,
