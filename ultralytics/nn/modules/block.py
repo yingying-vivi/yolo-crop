@@ -1141,8 +1141,9 @@ class DropPath(nn.Module):
 
 
 class StarBlock(nn.Module):
-    def __init__(self, dim, mlp_ratio=3, drop_path=0.0):
+    def __init__(self, dim, mlp_ratio=3, drop_path=0.0, shortcut=False):
         super().__init__()
+        self.add = shortcut
         self.dwconv = nn.Sequential(
             nn.Conv2d(dim, dim, 7, 1, (7 - 1) // 2, groups=dim),
             nn.BatchNorm2d(dim),
@@ -1163,7 +1164,9 @@ class StarBlock(nn.Module):
         x1, x2 = self.f1(x), self.f2(x)
         x = self.act(x1) * x2
         x = self.dwconv2(self.g(x))
-        x = input + self.drop_path(x)
+        x = self.drop_path(x)
+        if self.add:
+            x = input + x
         return x
 
 
@@ -1171,7 +1174,7 @@ class C3k2_Star(C2f):
     def __init__(self, c1, c2, n=1, c3k=False, e=0.5, g=1, shortcut=True):
         super().__init__(c1, c2, n, shortcut, g, e)
         self.m = nn.ModuleList(
-            C3k(self.c, self.c, 2, shortcut, g) if c3k else StarBlock(self.c) for _ in range(n)
+            C3k(self.c, self.c, 2, shortcut, g) if c3k else StarBlock(self.c, shortcut=False) for _ in range(n)
         )
 
 
