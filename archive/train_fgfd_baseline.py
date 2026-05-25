@@ -10,9 +10,9 @@ PRETRAINED = "yolo11n-seg.pt"
 
 
 def train_baseline():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Training YOLO11 baseline (pretrained)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Training YOLO11 baseline (pretrained)")
+    print(f"{'=' * 60}\n")
     model = YOLO(PRETRAINED)
     results = model.train(
         data=DATA_YAML,
