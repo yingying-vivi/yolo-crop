@@ -16,11 +16,11 @@ __all__ = (
     "C1",
     "C2",
     "C2PSA",
-    "ECA",
     "C3",
     "C3TR",
     "CIB",
     "DFL",
+    "ECA",
     "ELAN1",
     "PSA",
     "SPP",
@@ -40,7 +40,6 @@ __all__ = (
     "C3k2",
     "C3k2_Star",
     "C3x",
-    "StarBlock",
     "CBFuse",
     "CBLinear",
     "ContrastiveHead",
@@ -54,6 +53,7 @@ __all__ = (
     "RepVGGDW",
     "ResNetLayer",
     "SCDown",
+    "StarBlock",
     "TorchVision",
 )
 
