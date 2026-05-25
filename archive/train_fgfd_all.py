@@ -1,10 +1,12 @@
-from ultralytics import YOLO
-import torch
-from ultralytics.utils.torch_utils import intersect_dicts
-from ultralytics.nn.tasks import FieldSegmentationModel
-from ultralytics.models.yolo.segment import SegmentationTrainer
-from ultralytics.utils import DEFAULT_CFG, RANK
 from copy import copy
+
+import torch
+
+from ultralytics import YOLO
+from ultralytics.models.yolo.segment import SegmentationTrainer
+from ultralytics.nn.tasks import FieldSegmentationModel
+from ultralytics.utils import RANK
+from ultralytics.utils.torch_utils import intersect_dicts
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/fgfd/data.yaml"
 EPOCHS = 100
@@ -23,7 +25,9 @@ SHIFT_MAP = {17: 18, 18: 19, 19: 20, 20: 22, 21: 23, 22: 24, 23: 26}
 
 class FieldSegmentationTrainer(SegmentationTrainer):
     def get_model(self, cfg=None, weights=None, verbose=True):
-        model = FieldSegmentationModel(cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1)
+        model = FieldSegmentationModel(
+            cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1
+        )
         if weights:
             model.load(weights)
         return model
@@ -31,6 +35,7 @@ class FieldSegmentationTrainer(SegmentationTrainer):
     def get_validator(self):
         self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss", "sem_loss", "biou_loss", "bmask_loss"
         from ultralytics.models.yolo.segment import SegmentationValidator
+
         return SegmentationValidator(
             self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
         )
@@ -49,7 +54,7 @@ def load_with_shift(model, pretrained_path, shift_map, verbose=True):
         new_prefix = f"model.{new_idx}."
         for key, value in pretrained_sd.items():
             if key.startswith(old_prefix):
-                new_key = new_prefix + key[len(old_prefix):]
+                new_key = new_prefix + key[len(old_prefix) :]
                 if new_key in model_sd and model_sd[new_key].shape == value.shape:
                     remapped[new_key] = value
     if remapped:
@@ -61,9 +66,9 @@ def load_with_shift(model, pretrained_path, shift_map, verbose=True):
 
 
 def run_experiment(name, model, **kwargs):
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"[FGFD] Starting experiment: {name}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     results = model.train(
         data=DATA_YAML,
         epochs=EPOCHS,
@@ -84,7 +89,9 @@ def run_experiment(name, model, **kwargs):
 EXPERIMENTS = {
     "fgfd_baseline": lambda: run_experiment("fgfd_baseline", YOLO(PRETRAINED)),
     "fgfd_star": lambda: run_experiment("fgfd_star", (m := YOLO(STAR_YAML), m.load(PRETRAINED), m)[2]),
-    "fgfd_eca": lambda: run_experiment("fgfd_eca", (m := YOLO(ECA_YAML), load_with_shift(m.model, PRETRAINED, SHIFT_MAP), m)[2]),
+    "fgfd_eca": lambda: run_experiment(
+        "fgfd_eca", (m := YOLO(ECA_YAML), load_with_shift(m.model, PRETRAINED, SHIFT_MAP), m)[2]
+    ),
     "fgfd_field_loss": lambda: run_experiment(
         "fgfd_field_loss",
         (m := YOLO(BASELINE_YAML), m.load(PRETRAINED), setattr(m, "trainer", FieldSegmentationTrainer), m)[3],
@@ -94,6 +101,7 @@ EXPERIMENTS = {
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) > 1:
         exp_name = sys.argv[1]
         if exp_name in EXPERIMENTS:
