@@ -587,6 +587,62 @@ class FieldSegmentationModel(SegmentationModel):
         return FieldSegmentationLoss(self)
 
 
+class DiceSegModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import DiceSegLoss
+        return DiceSegLoss(self)
+
+
+class DiceWeightedSegModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import DiceWeightedSegLoss
+        return DiceWeightedSegLoss(self, dice_weight=0.5)
+
+
+class CompactnessSegModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import CompactnessSegLoss
+        return CompactnessSegLoss(self)
+
+
+class FieldDiceModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import FieldDiceLoss
+        return FieldDiceLoss(self)
+
+
+class FieldAdaptiveModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import FieldAdaptiveLoss
+        return FieldAdaptiveLoss(self)
+
+
+class FieldDiceWIoUModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import FieldDiceWIoULoss
+        return FieldDiceWIoULoss(self)
+
+
+class SizeAwareMaskModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import SizeAwareMaskLoss
+        return SizeAwareMaskLoss(self)
+
+
+class SizeAwareMaskModel26(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import SizeAwareMaskLoss
+        if getattr(self, "end2end", False):
+            return E2ELoss(self, SizeAwareMaskLoss)
+        return SizeAwareMaskLoss(self)
+
+
+class DiceSizeAwareModel(SegmentationModel):
+    def init_criterion(self):
+        from ultralytics.utils.loss import DiceSizeAwareLoss
+        return DiceSizeAwareLoss(self)
+
+
 class PoseModel(DetectionModel):
     """YOLO pose model.
 
