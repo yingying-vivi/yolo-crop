@@ -1,0 +1,136 @@
+import torch
+from ultralytics.nn.tasks import SizeAwareMaskModel26
+from ultralytics.models.yolo.segment import SegmentationTrainer
+from ultralytics.utils import RANK
+from ultralytics.utils.torch_utils import intersect_dicts
+from copy import copy
+
+DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/fgfd_1cls/data.yaml"
+EPOCHS = 200
+IMGSZ = 640
+BATCH = 16
+DEVICE = 0
+
+PRETRAINED = "yolo26n-seg.pt"
+YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/ultralytics/cfg/models/26/yolo26-star-deep-eca-seg.yaml"
+PROJECT = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/runs/segment"
+
+SHIFT_MAP = {
+    17: 18,
+    18: 19,
+    19: 20,
+    20: 22,
+    21: 23,
+    22: 24,
+    23: 26,
+}
+
+
+class SizeAwareMaskTrainer26(SegmentationTrainer):
+    def get_model(self, cfg=None, weights=None, verbose=True):
+        model = SizeAwareMaskModel26(cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1)
+        if weights:
+            load_with_shift(model, weights, SHIFT_MAP)
+        return model
+
+    def get_validator(self):
+        self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss", "sem_loss"
+        from ultralytics.models.yolo.segment import SegmentationValidator
+        return SegmentationValidator(
+            self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
+        )
+
+
+def load_with_shift(model, pretrained_weights, shift_map):
+    if isinstance(pretrained_weights, str):
+        ckpt = torch.load(pretrained_weights, map_location="cpu", weights_only=False)
+        pretrained_sd = ckpt["model"].float().state_dict()
+    else:
+        pretrained_sd = pretrained_weights.float().state_dict()
+
+    model_sd = model.state_dict()
+
+    matched = intersect_dicts(pretrained_sd, model_sd)
+    model.load_state_dict(matched, strict=False)
+    n_direct = len(matched)
+
+    remapped = {}
+    for old_idx, new_idx in shift_map.items():
+        old_prefix = f"model.{old_idx}."
+        new_prefix = f"model.{new_idx}."
+        for key, value in pretrained_sd.items():
+            if key.startswith(old_prefix):
+                new_key = new_prefix + key[len(old_prefix):]
+                if new_key in model_sd and model_sd[new_key].shape == value.shape:
+                    remapped[new_key] = value
+
+    if remapped:
+        model.load_state_dict(remapped, strict=False)
+        n_matched = n_direct + len(remapped)
+    else:
+        n_matched = n_direct
+
+    total = len(model_sd)
+    print(f"Weight loading: {n_matched}/{total} ({n_matched/total*100:.1f}%)")
+    print(f"  Direct: {n_direct}, Shift-remapped: {len(remapped)}")
+    return model
+
+
+def train_fgfd_v26_star_deep_eca_size_aware():
+    print(f"\n{'='*60}")
+    print(f"[FGFD] YOLOv26-Star-Deep + ECA + Size-Aware Mask + WIoU + Dice")
+    print(f"  Model: yolo26-star-deep-eca-seg (v26 baseline)")
+    print(f"  Bbox loss: WIoU v3 (non-monotonic focusing)")
+    print(f"  Mask BCE: crop_mask.mean/area * size_weight")
+    print(f"  size_weight = sqrt(0.05/area), clamped [1.0, 4.0]")
+    print(f"  Mask Dice: uniform (no size weighting)")
+    print(f"  end2end=True, reg_max=1")
+    print(f"{'='*60}\n")
+
+    args = dict(
+        model=YAML,
+        data=DATA_YAML,
+        epochs=EPOCHS,
+        imgsz=IMGSZ,
+        batch=BATCH,
+        device=DEVICE,
+        project=PROJECT,
+        name="fgfd_v26_star_deep_eca_size_aware",
+        exist_ok=True,
+        workers=8,
+        seed=42,
+        freeze=0,
+        mosaic=0.5,
+        close_mosaic=20,
+        mixup=0.0,
+        cutmix=0.0,
+        auto_augment=None,
+        erasing=0.0,
+        hsv_h=0.015,
+        hsv_s=0.5,
+        hsv_v=0.3,
+        degrees=10,
+        translate=0.1,
+        scale=0.5,
+        fliplr=0.5,
+        flipud=0.5,
+        lr0=0.002,
+        lrf=0.01,
+        cos_lr=True,
+        warmup_epochs=5,
+        warmup_bias_lr=0.01,
+        patience=200,
+        dropout=0.2,
+        overlap_mask=True,
+        mask_ratio=4,
+        weight_decay=0.001,
+        pretrained=PRETRAINED,
+    )
+
+    trainer = SizeAwareMaskTrainer26(overrides=args)
+    results = trainer.train()
+    return results
+
+
+if __name__ == "__main__":
+    train_fgfd_v26_star_deep_eca_size_aware()
