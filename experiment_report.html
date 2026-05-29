@@ -191,42 +191,18 @@ body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;backgroun
   <div class="problem-grid">
     <div class="problem-card">
       <div class="emoji">&#128312;</div>
-      <h4 class="prob-color1">问题一：不规则边界难以精确描述</h4>
-      <p>农田地块受道路、水渠、地形约束，边界呈不规则多边形而非矩形。标准C3k2的3×3卷积仅提供线性变换，感受野有限，无法建模长距离边界曲率与邻域空间交叉关系，导致边界预测粗糙、地块粘连。</p>
-      <div class="arrow">→ StarBlock深层替换</div>
+      <h4 style="color:var(--purple)">问题一：不规则边界难以精确描述</h4>
+      <p>农田地块受道路、水渠、地形约束，边界呈不规则多边形而非矩形。现有卷积核（3×3）感受野有限，无法建模长距离边界曲率与邻域空间关系，导致边界预测粗糙、地块粘连。</p>
     </div>
     <div class="problem-card">
       <div class="emoji">&#128200;</div>
-      <h4 class="prob-color2">问题二：小地块检测与掩膜质量失衡</h4>
-      <p>碎片化耕地（面积<FGFD P25≈5%）在训练中像素占比低，IoU损失对小面积变化梯度响应不足，BCE逐像素平均使小地块权重被大地块淹没。结果：小地块检测率低+掩膜质量差，大/小地块性能严重失衡。</p>
-      <div class="arrow">→ Size-Aware协同Loss</div>
+      <h4 style="color:var(--accent)">问题二：小地块检测与分割质量失衡</h4>
+      <p>碎片化耕地（面积<0.05标准化单位）在训练中占比低、权重小，模型倾向于漏检小地块或仅给出低质量掩膜。IoU损失对小目标面积变化敏感度不足，导致小地块掩膜精度显著低于大地块。</p>
     </div>
     <div class="problem-card">
-      <div class="emoji">&#127911;</div>
-      <h4 class="prob-color3">问题三：多尺度特征判别性不足</h4>
-      <p>Head层P3/P4/P5三尺度Concat后的特征通道重要性差异显著——P3噪声多、P5分辨率低。标准C3k2平等对待所有通道，无法自适应抑制背景噪声通道、增强地块关键通道，导致复杂背景下误检增多。</p>
-      <div class="arrow">→ ECA通道注意力</div>
-    </div>
-  </div>
-
-  <div class="card" style="border-left-color:var(--accent)">
-    <h3>三项改进与三大问题一一对应</h3>
-    <div class="solution-grid" style="margin-top:16px">
-      <div class="solution-card">
-        <span class="tag purple">改进1 → 问题1</span>
-        <h4>StarBlock深层替换</h4>
-        <p>Star Operation的隐式二次映射(x₁·x₂)建模不规则边界的非线性曲率组合，7×7 DWConv提供约14m感受野覆盖典型边界段</p>
-      </div>
-      <div class="solution-card">
-        <span class="tag green">改进2 → 问题2</span>
-        <h4>Size-Aware协同Loss</h4>
-        <p>WIoU提升小地块Recall(检测)→面积加权修正其Precision(掩膜)→Dice保形状完整性，三者协同解决检测+掩膜双重失衡</p>
-      </div>
-      <div class="solution-card">
-        <span class="tag orange">改进3 → 问题3</span>
-        <h4>ECA通道注意力</h4>
-        <p>仅+3参数/尺度的1D Conv跨通道交互，自适应抑制噪声通道、增强地块判别通道，提升多尺度特征筛选能力</p>
-      </div>
+      <div class="emoji">&#127757;</div>
+      <h4 style="color:var(--orange)">问题三：跨域泛化能力不足</h4>
+      <p>不同区域的地块形态差异巨大（平原大地块vs山区碎片地块），不同遥感源的空间分辨率差异（0.3m无人机vs10m卫星）使单一模型难以兼顾多场景表现。</p>
     </div>
   </div>
 </section>
@@ -577,37 +553,35 @@ body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;backgroun
   <!-- Tab 1: Comparison -->
   <div id="exp1" class="tab-content active">
     <div class="comparison-note">
-      对比实验尚在完善中，部分模型训练参数（epoch数、输入尺寸等）尚未完全对齐。以下数据为初步结果，最终论文将报告严格对齐后的对比。语义分割模型（UNet等）的IoU与实例分割的mAP是不同指标体系，仅作参考。
+      对比实验尚在完善中，部分模型训练参数尚未完全对齐，最终论文将报告严格对齐后的对比。
     </div>
 
     <div class="card highlight">
-      <h3>FGFD数据集——YOLO版本对比</h3>
+      <h3>FGFD数据集——YOLO_star与baseline对比</h3>
       <table class="data-table">
-        <thead><tr><th>模型</th><th>P(M)</th><th>R(M)</th><th>mAP50(M)</th><th>mAP50-95(M)</th><th>Params(M)</th><th>备注</th></tr></thead>
+        <thead><tr><th>模型</th><th>P(M)</th><th>R(M)</th><th>mAP50(M)</th><th>mAP50-95(M)</th><th>Params(M)</th></tr></thead>
         <tbody>
-          <tr><td>YOLOv8n-seg</td><td class="val">93.77%</td><td class="val">96.75%</td><td class="val">98.05%</td><td class="val">95.34%</td><td class="val">3.4</td><td>Paddy数据集100ep(参数未对齐)</td></tr>
-          <tr><td>YOLOv26n-seg</td><td class="val">91.71%</td><td class="val">92.92%</td><td class="val">97.58%</td><td class="val">95.00%</td><td class="val">2.7</td><td>Paddy数据集100ep(参数未对齐)</td></tr>
-          <tr><td>YOLOv11n-seg (baseline)</td><td class="val">74.52%</td><td class="val">74.59%</td><td class="val">77.86%</td><td class="val">56.43%</td><td class="val">3.2</td><td>FGFD 200ep</td></tr>
-          <tr style="background:rgba(39,174,96,0.1)"><td><strong>YOLO_star</strong></td><td class="val">75.26%</td><td class="val">75.41%</td><td class="val best">80.24%</td><td class="val best">58.77%</td><td class="val">~3.2</td><td>FGFD 200ep</td></tr>
+          <tr><td>YOLOv11n-seg (baseline)</td><td class="val">74.52%</td><td class="val">74.59%</td><td class="val">77.86%</td><td class="val">56.43%</td><td class="val">3.2</td></tr>
+          <tr style="background:rgba(39,174,96,0.1)"><td><strong>YOLO_star</strong></td><td class="val">75.26%</td><td class="val">75.41%</td><td class="val best">80.24%</td><td class="val best">58.77%</td><td class="val">~3.2</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="card">
-      <h3>FGFD数据集——与语义分割SOTA对比（参考）</h3>
-      <p style="font-size:0.9em;color:var(--text-light)">以下为语义分割模型在FGFD上的IoU结果（来自同课题组前期实验），与实例分割mAP指标体系不同，仅作趋势参考：</p>
+      <h3>FGFD数据集——不同YOLO版本对比</h3>
+      <p style="font-size:0.9em;color:var(--text-light)"><span class="badge orange">待补充</span> YOLOv8n-seg、YOLOv26n-seg在FGFD上的对比实验尚未完成，将在统一参数（200ep, imgsz=640, batch=16, seed=42）下训练后补充。</p>
       <table class="data-table" style="margin-top:8px">
-        <thead><tr><th>模型</th><th>任务类型</th><th>IoU</th><th>F1</th><th>Precision</th><th>Recall</th><th>OA</th></tr></thead>
+        <thead><tr><th>模型</th><th>P(M)</th><th>R(M)</th><th>mAP50(M)</th><th>mAP50-95(M)</th><th>Params(M)</th></tr></thead>
         <tbody>
-          <tr><td>UNet</td><td>语义分割</td><td class="val">85.36%</td><td class="val">92.10%</td><td class="val">91.11%</td><td class="val">93.12%</td><td class="val">92.79%</td></tr>
-          <tr><td>UNetFormer</td><td>语义分割</td><td class="val">84.23%</td><td class="val">91.44%</td><td class="val">90.71%</td><td class="val">92.19%</td><td class="val">92.21%</td></tr>
-          <tr><td>DeepLabV3+</td><td>语义分割</td><td class="val">84.64%</td><td class="val">91.68%</td><td class="val">91.30%</td><td class="val">92.06%</td><td class="val">92.46%</td></tr>
+          <tr><td>YOLOv11n-seg (baseline)</td><td class="val">74.52%</td><td class="val">74.59%</td><td class="val">77.86%</td><td class="val">56.43%</td><td class="val">3.2</td></tr>
+          <tr><td>YOLOv8n-seg</td><td class="val">待补充</td><td class="val">—</td><td class="val">—</td><td class="val">—</td><td class="val">3.4</td></tr>
+          <tr><td>YOLOv26n-seg</td><td class="val">待补充</td><td class="val">—</td><td class="val">—</td><td class="val">—</td><td class="val">2.7</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="card">
-      <h3>FTW数据集——与语义分割SOTA对比（参考）</h3>
+      <h3>FTW数据集——与语义分割SOTA对比</h3>
       <table class="data-table">
         <thead><tr><th>模型</th><th>任务类型</th><th>IoU</th><th>F1</th><th>Precision</th><th>Recall</th><th>OA</th></tr></thead>
         <tbody>
@@ -616,6 +590,19 @@ body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;backgroun
           <tr><td>DeepLabV3+</td><td>语义分割</td><td class="val">66.45%</td><td class="val">79.85%</td><td class="val">75.50%</td><td class="val">84.72%</td><td class="val">87.09%</td></tr>
           <tr><td>DBBANet</td><td>语义分割</td><td class="val best">67.72%</td><td class="val best">80.76%</td><td class="val">77.31%</td><td class="val">84.52%</td><td class="val best">87.84%</td></tr>
           <tr><td>SegFormer</td><td>语义分割</td><td class="val">52.88%</td><td class="val">69.18%</td><td class="val">61.89%</td><td class="val">78.41%</td><td class="val">78.90%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Paddy数据集——不同YOLO版本对比</h3>
+      <p style="font-size:0.9em;color:var(--text-light)">Paddy Field数据集上YOLOv8/v26/v11对比（参数尚未完全对齐：v8和v26为100ep，v11为200ep）：</p>
+      <table class="data-table" style="margin-top:8px">
+        <thead><tr><th>模型</th><th>P(M)</th><th>R(M)</th><th>mAP50(M)</th><th>mAP50-95(M)</th><th>Params(M)</th><th>Epochs</th></tr></thead>
+        <tbody>
+          <tr><td>YOLOv8n-seg</td><td class="val">93.77%</td><td class="val">96.75%</td><td class="val">98.05%</td><td class="val">95.34%</td><td class="val">3.4</td><td class="val">100</td></tr>
+          <tr><td>YOLOv26n-seg</td><td class="val">91.71%</td><td class="val">92.92%</td><td class="val">97.58%</td><td class="val">95.00%</td><td class="val">2.7</td><td class="val">100</td></tr>
+          <tr><td>YOLOv11n-seg</td><td class="val">99.30%</td><td class="val">98.87%</td><td class="val">99.44%</td><td class="val">99.13%</td><td class="val">3.2</td><td class="val">200</td></tr>
         </tbody>
       </table>
     </div>
@@ -733,7 +720,7 @@ body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;backgroun
       <div style="margin-top:12px">
         <div style="margin-bottom:18px">
           <p><strong>1. 对比实验尚需完善</strong></p>
-          <p style="color:var(--text-light);font-size:0.92em">现有语义分割对比（UNet等）的IoU与实例分割mAP是不同指标体系。需补充实例分割SOTA对比（Mask R-CNN、YOLACT等），并严格对齐训练参数。</p>
+          <p style="color:var(--text-light);font-size:0.92em">① FGFD数据集上的语义分割对比实验（UNet、DeepLabV3+等）指标体系不一致（IoU vs mAP），且现有数据可能混入了bbox级别的精度而非mask级别，需重新在统一框架下做实例分割对比（Mask R-CNN、YOLACT等）。② FGFD数据集上缺少不同YOLO版本（v8、v26）的对比。③ 各模型训练参数（epoch数、输入尺寸等）尚未完全对齐。</p>
         </div>
         <div style="margin-bottom:18px">
           <p><strong>2. 数据集泛化实验尚需丰富</strong></p>
