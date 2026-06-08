@@ -1,5 +1,6 @@
-from ultralytics import YOLO
 import torch
+
+from ultralytics import YOLO
 from ultralytics.utils.torch_utils import intersect_dicts
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/fgfd_1cls/data.yaml"
@@ -58,7 +59,7 @@ def load_with_shift(model, pretrained_path, shift_map, verbose=True):
         new_prefix = f"model.{new_idx}."
         for key, value in pretrained_sd.items():
             if key.startswith(old_prefix):
-                new_key = new_prefix + key[len(old_prefix):]
+                new_key = new_prefix + key[len(old_prefix) :]
                 if new_key in model_sd and model_sd[new_key].shape == value.shape:
                     remapped[new_key] = value
     if remapped:
@@ -70,9 +71,9 @@ def load_with_shift(model, pretrained_path, shift_map, verbose=True):
 
 
 def train_eca_v4():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Training YOLO11-ECA v4 (freeze backbone + imgsz=640)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Training YOLO11-ECA v4 (freeze backbone + imgsz=640)")
+    print(f"{'=' * 60}\n")
     model = YOLO(ECA_YAML)
     load_with_shift(model.model, PRETRAINED, SHIFT_MAP)
     results = model.train(
