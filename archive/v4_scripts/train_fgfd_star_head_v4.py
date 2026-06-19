@@ -42,9 +42,9 @@ TRAIN_ARGS = dict(
 
 
 def train_star_head():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Training YOLO11-StarHead (backbone standard, head StarBlock)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Training YOLO11-StarHead (backbone standard, head StarBlock)")
+    print(f"{'=' * 60}\n")
     model = YOLO(STAR_HEAD_YAML)
     model.load(PRETRAINED)
     results = model.train(
