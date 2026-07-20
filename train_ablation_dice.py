@@ -1,8 +1,8 @@
-from ultralytics import YOLO
-from ultralytics.nn.tasks import DiceSegModel
-from ultralytics.models.yolo.segment import SegmentationTrainer
-from ultralytics.utils import RANK
 from copy import copy
+
+from ultralytics.models.yolo.segment import SegmentationTrainer
+from ultralytics.nn.tasks import DiceSegModel
+from ultralytics.utils import RANK
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/fgfd_1cls/data.yaml"
 EPOCHS = 200
@@ -20,20 +20,25 @@ class DiceTrainer(SegmentationTrainer):
         model = DiceSegModel(cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1)
         if weights:
             import torch
+
             if isinstance(weights, str):
                 ckpt = torch.load(weights, map_location="cpu", weights_only=False)
                 pretrained_sd = ckpt["model"].float().state_dict()
             else:
                 pretrained_sd = weights.float().state_dict()
             from ultralytics.utils.torch_utils import intersect_dicts
+
             matched = intersect_dicts(pretrained_sd, model.state_dict())
             model.load_state_dict(matched, strict=False)
-            print(f"Weight loading: {len(matched)}/{len(model.state_dict())} ({len(matched)/len(model.state_dict())*100:.1f}%)")
+            print(
+                f"Weight loading: {len(matched)}/{len(model.state_dict())} ({len(matched) / len(model.state_dict()) * 100:.1f}%)"
+            )
         return model
 
     def get_validator(self):
         self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss", "sem_loss"
         from ultralytics.models.yolo.segment import SegmentationValidator
+
         return SegmentationValidator(
             self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
         )

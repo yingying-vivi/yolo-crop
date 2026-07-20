@@ -39,9 +39,9 @@ TRAIN_ARGS = dict(
 
 
 def train_star_v2():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Training YOLO11-StarBlock v3 (no internal shortcut)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Training YOLO11-StarBlock v3 (no internal shortcut)")
+    print(f"{'=' * 60}\n")
     model = YOLO(STAR_YAML)
     model.load(PRETRAINED)
     results = model.train(
