@@ -1,9 +1,11 @@
+from copy import copy
+
 import torch
-from ultralytics.nn.tasks import SizeAwareMaskModel
+
 from ultralytics.models.yolo.segment import SegmentationTrainer
+from ultralytics.nn.tasks import SizeAwareMaskModel
 from ultralytics.utils import RANK
 from ultralytics.utils.torch_utils import intersect_dicts
-from copy import copy
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/croplayer/data.yaml"
 EPOCHS = 200
@@ -32,6 +34,7 @@ class SizeAwareMaskTrainer(SegmentationTrainer):
     def get_validator(self):
         self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss", "sem_loss"
         from ultralytics.models.yolo.segment import SegmentationValidator
+
         return SegmentationValidator(
             self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
         )
@@ -56,7 +59,7 @@ def load_with_shift(model, pretrained_weights, shift_map):
         new_prefix = f"model.{new_idx}."
         for key, value in pretrained_sd.items():
             if key.startswith(old_prefix):
-                new_key = new_prefix + key[len(old_prefix):]
+                new_key = new_prefix + key[len(old_prefix) :]
                 if new_key in model_sd and model_sd[new_key].shape == value.shape:
                     remapped[new_key] = value
 
@@ -67,19 +70,19 @@ def load_with_shift(model, pretrained_weights, shift_map):
         n_matched = n_direct
 
     total = len(model_sd)
-    print(f"Weight loading: {n_matched}/{total} ({n_matched/total*100:.1f}%)")
+    print(f"Weight loading: {n_matched}/{total} ({n_matched / total * 100:.1f}%)")
     print(f"  Direct: {n_direct}, Shift-remapped: {len(remapped)}")
     return model
 
 
 def train_croplayer_yolo_star():
-    print(f"\n{'='*60}")
-    print(f"[CropLayer] YOLO_star: Star-Deep + ECA + SizeAware Loss")
-    print(f"  Model: star-deep-eca-seg")
-    print(f"  Bbox loss: WIoU v3")
-    print(f"  Mask: Dice + Size-Aware area weighting")
-    print(f"  Dataset: CropLayer Beijing (2m satellite)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[CropLayer] YOLO_star: Star-Deep + ECA + SizeAware Loss")
+    print("  Model: star-deep-eca-seg")
+    print("  Bbox loss: WIoU v3")
+    print("  Mask: Dice + Size-Aware area weighting")
+    print("  Dataset: CropLayer Beijing (2m satellite)")
+    print(f"{'=' * 60}\n")
 
     args = dict(
         model=YAML,

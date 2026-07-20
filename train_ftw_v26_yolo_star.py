@@ -1,9 +1,11 @@
+from copy import copy
+
 import torch
-from ultralytics.nn.tasks import SizeAwareMaskModel26
+
 from ultralytics.models.yolo.segment import SegmentationTrainer
+from ultralytics.nn.tasks import SizeAwareMaskModel26
 from ultralytics.utils import RANK
 from ultralytics.utils.torch_utils import intersect_dicts
-from copy import copy
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/ftw/data.yaml"
 EPOCHS = 200
@@ -36,6 +38,7 @@ class SizeAwareMaskTrainer26(SegmentationTrainer):
     def get_validator(self):
         self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss", "sem_loss"
         from ultralytics.models.yolo.segment import SegmentationValidator
+
         return SegmentationValidator(
             self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
         )
@@ -60,7 +63,7 @@ def load_with_shift(model, pretrained_weights, shift_map):
         new_prefix = f"model.{new_idx}."
         for key, value in pretrained_sd.items():
             if key.startswith(old_prefix):
-                new_key = new_prefix + key[len(old_prefix):]
+                new_key = new_prefix + key[len(old_prefix) :]
                 if new_key in model_sd and model_sd[new_key].shape == value.shape:
                     remapped[new_key] = value
 
@@ -71,17 +74,17 @@ def load_with_shift(model, pretrained_weights, shift_map):
         n_matched = n_direct
 
     total = len(model_sd)
-    print(f"Weight loading: {n_matched}/{total} ({n_matched/total*100:.1f}%)")
+    print(f"Weight loading: {n_matched}/{total} ({n_matched / total * 100:.1f}%)")
     print(f"  Direct: {n_direct}, Shift-remapped: {len(remapped)}")
     return model
 
 
 def train_ftw_v26_yolo_star():
-    print(f"\n{'='*60}")
-    print(f"[FTW] YOLOv26-star generalization experiment")
-    print(f"  Model: yolo26-star-deep-eca-seg + Size-Aware Loss")
-    print(f"  end2end=True, reg_max=1")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FTW] YOLOv26-star generalization experiment")
+    print("  Model: yolo26-star-deep-eca-seg + Size-Aware Loss")
+    print("  end2end=True, reg_max=1")
+    print(f"{'=' * 60}\n")
 
     args = dict(
         model=YAML,

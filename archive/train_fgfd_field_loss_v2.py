@@ -1,8 +1,9 @@
-from ultralytics import YOLO
-from ultralytics.nn.tasks import FieldSegmentationModel
-from ultralytics.models.yolo.segment import SegmentationTrainer
-from ultralytics.utils import DEFAULT_CFG, RANK
 from copy import copy
+
+from ultralytics import YOLO
+from ultralytics.models.yolo.segment import SegmentationTrainer
+from ultralytics.nn.tasks import FieldSegmentationModel
+from ultralytics.utils import RANK
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/fgfd_1cls/data.yaml"
 EPOCHS = 200
@@ -44,7 +45,9 @@ TRAIN_ARGS = dict(
 
 class FieldSegmentationTrainer(SegmentationTrainer):
     def get_model(self, cfg=None, weights=None, verbose=True):
-        model = FieldSegmentationModel(cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1)
+        model = FieldSegmentationModel(
+            cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose and RANK == -1
+        )
         if weights:
             model.load(weights)
         return model
@@ -52,15 +55,16 @@ class FieldSegmentationTrainer(SegmentationTrainer):
     def get_validator(self):
         self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss", "sem_loss", "biou_loss", "bmask_loss"
         from ultralytics.models.yolo.segment import SegmentationValidator
+
         return SegmentationValidator(
             self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
         )
 
 
 def train_field_loss_v2():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Training YOLO11-FieldLoss v2")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Training YOLO11-FieldLoss v2")
+    print(f"{'=' * 60}\n")
     model = YOLO(BASELINE_YAML)
     model.load(PRETRAINED)
     model.trainer = FieldSegmentationTrainer
