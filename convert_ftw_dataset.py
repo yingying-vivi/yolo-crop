@@ -1,9 +1,9 @@
-import os
+from pathlib import Path
+
+import cv2
 import numpy as np
 from PIL import Image
-from pathlib import Path
 from scipy import ndimage
-import cv2
 
 SRC_DIR = Path("/home/fumu/datadisk/split_ftw_4")
 OUT_DIR = Path("/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/ftw")
