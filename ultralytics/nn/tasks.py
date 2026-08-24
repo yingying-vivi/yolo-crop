@@ -8,7 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import (
@@ -68,7 +68,6 @@ from ultralytics.nn.modules import (
     SCDown,
     Segment,
     Segment26,
-    StarBlock,
     TorchVision,
     WorldDetect,
     YOLOEDetect,
@@ -584,54 +583,63 @@ class SegmentationModel(DetectionModel):
 class FieldSegmentationModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import FieldSegmentationLoss
+
         return FieldSegmentationLoss(self)
 
 
 class DiceSegModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import DiceSegLoss
+
         return DiceSegLoss(self)
 
 
 class DiceWeightedSegModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import DiceWeightedSegLoss
+
         return DiceWeightedSegLoss(self, dice_weight=0.5)
 
 
 class CompactnessSegModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import CompactnessSegLoss
+
         return CompactnessSegLoss(self)
 
 
 class FieldDiceModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import FieldDiceLoss
+
         return FieldDiceLoss(self)
 
 
 class FieldAdaptiveModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import FieldAdaptiveLoss
+
         return FieldAdaptiveLoss(self)
 
 
 class FieldDiceWIoUModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import FieldDiceWIoULoss
+
         return FieldDiceWIoULoss(self)
 
 
 class SizeAwareMaskModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import SizeAwareMaskLoss
+
         return SizeAwareMaskLoss(self)
 
 
 class SizeAwareMaskModel26(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import SizeAwareMaskLoss
+
         if getattr(self, "end2end", False):
             return E2ELoss(self, SizeAwareMaskLoss)
         return SizeAwareMaskLoss(self)
@@ -640,6 +648,7 @@ class SizeAwareMaskModel26(SegmentationModel):
 class DiceSizeAwareModel(SegmentationModel):
     def init_criterion(self):
         from ultralytics.utils.loss import DiceSizeAwareLoss
+
         return DiceSizeAwareLoss(self)
 
 
@@ -1442,11 +1451,9 @@ class SafeClass:
 
     def __init__(self, *args, **kwargs):
         """Initialize SafeClass instance, ignoring all arguments."""
-        pass
 
     def __call__(self, *args, **kwargs):
         """Run SafeClass instance, ignoring all arguments."""
-        pass
 
 
 class SafeUnpickler(pickle.Unpickler):
