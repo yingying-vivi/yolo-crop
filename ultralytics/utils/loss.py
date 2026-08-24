@@ -6,10 +6,10 @@ import math
 from typing import Any
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
-from ultralytics.utils.metrics import OKS_SIGMA, RLE_WEIGHT, boundary_iou, bbox_iou
+from ultralytics.utils.metrics import OKS_SIGMA, RLE_WEIGHT, bbox_iou, boundary_iou
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
 from ultralytics.utils.torch_utils import autocast
@@ -114,8 +114,18 @@ class WIoULoss(nn.Module):
         self.delta = delta
         self._running_mean = None
 
-    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes,
-                target_scores, target_scores_sum, fg_mask, imgsz, stride):
+    def forward(
+        self,
+        pred_dist,
+        pred_bboxes,
+        anchor_points,
+        target_bboxes,
+        target_scores,
+        target_scores_sum,
+        fg_mask,
+        imgsz,
+        stride,
+    ):
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         pred_fg = pred_bboxes[fg_mask]
         target_fg = target_bboxes[fg_mask]
@@ -688,12 +698,21 @@ class BoundaryBboxLoss(BboxLoss):
         self.erosion_ratio = erosion_ratio
         self.boundary_weight = boundary_weight
 
-    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes,
-                target_scores, target_scores_sum, fg_mask, imgsz, stride):
+    def forward(
+        self,
+        pred_dist,
+        pred_bboxes,
+        anchor_points,
+        target_bboxes,
+        target_scores,
+        target_scores_sum,
+        fg_mask,
+        imgsz,
+        stride,
+    ):
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
-        biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask],
-                            erosion_ratio=self.erosion_ratio, xywh=False)
+        biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], erosion_ratio=self.erosion_ratio, xywh=False)
         combined = iou * (1 - self.boundary_weight) + biou * self.boundary_weight
         loss_iou = ((1.0 - combined) * weight).sum() / target_scores_sum
 
@@ -747,8 +766,18 @@ class FieldDiceBboxLoss(BboxLoss):
         super().__init__(reg_max)
         self.boundary_weight = boundary_weight
 
-    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes,
-                target_scores, target_scores_sum, fg_mask, imgsz, stride):
+    def forward(
+        self,
+        pred_dist,
+        pred_bboxes,
+        anchor_points,
+        target_bboxes,
+        target_scores,
+        target_scores_sum,
+        fg_mask,
+        imgsz,
+        stride,
+    ):
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
         biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], erosion_ratio=0.2, xywh=False)
@@ -785,7 +814,7 @@ class DiceSegLoss(v8SegmentationLoss):
         pred_sigmoid = pred_mask.sigmoid()
         bce = F.binary_cross_entropy_with_logits(pred_mask, gt_mask, reduction="none")
         bce_loss = (crop_mask(bce, xyxy).mean(dim=(1, 2)) / area).sum()
-        intersection = (crop_mask(pred_sigmoid * gt_mask, xyxy).sum(dim=(1, 2)))
+        intersection = crop_mask(pred_sigmoid * gt_mask, xyxy).sum(dim=(1, 2))
         union = (crop_mask(pred_sigmoid + gt_mask, xyxy).sum(dim=(1, 2))) + 1e-7
         dice_loss = 1 - (2 * intersection / union).mean()
         return bce_loss + self.dice_weight * dice_loss
@@ -843,9 +872,7 @@ class FieldAdaptiveLoss(v8SegmentationLoss):
 class FieldDiceWIoULoss(v8SegmentationLoss):
     def __init__(self, model, tal_topk=10, tal_topk2=None):
         super().__init__(model, tal_topk, tal_topk2)
-        self.bbox_loss = WIoULoss(
-            model.model[-1].reg_max, momentum=0.9, delta=3
-        ).to(self.device)
+        self.bbox_loss = WIoULoss(model.model[-1].reg_max, momentum=0.9, delta=3).to(self.device)
         self._dice_running_mean = None
         self.mask_momentum = 0.9
         self.mask_delta = 3
@@ -856,13 +883,15 @@ class FieldDiceWIoULoss(v8SegmentationLoss):
 
         intersection = crop_mask(pred_sigmoid * gt_mask, xyxy).sum(dim=(1, 2))
         union = crop_mask(pred_sigmoid + gt_mask, xyxy).sum(dim=(1, 2)) + 1e-7
-        dice_coeff = (2 * intersection / union)
+        dice_coeff = 2 * intersection / union
         dice_mean = dice_coeff.detach().mean()
 
         if self._dice_running_mean is None:
             self._dice_running_mean = dice_mean
         else:
-            self._dice_running_mean = (1 - self.mask_momentum) * dice_mean + self.mask_momentum * self._dice_running_mean
+            self._dice_running_mean = (
+                1 - self.mask_momentum
+            ) * dice_mean + self.mask_momentum * self._dice_running_mean
 
         b = (1 - dice_coeff.detach()) / (1 - self._dice_running_mean + 1e-7)
         b = b.clamp(min=0)
@@ -875,8 +904,9 @@ class FieldDiceWIoULoss(v8SegmentationLoss):
         focused_mask_loss = (per_inst_bce + per_inst_dice) * r
         return focused_mask_loss.sum()
 
-    def calculate_segmentation_loss(self, fg_mask, masks, target_gt_idx, target_bboxes,
-                                     batch_idx, proto, pred_masks, imgsz):
+    def calculate_segmentation_loss(
+        self, fg_mask, masks, target_gt_idx, target_bboxes, batch_idx, proto, pred_masks, imgsz
+    ):
         _, _, mask_h, mask_w = proto.shape
         loss = 0
         target_bboxes_normalized = target_bboxes / imgsz[[1, 0, 1, 0]]
@@ -909,9 +939,7 @@ class DiceWeightedSegLoss(DiceSegLoss):
 class SizeAwareMaskLoss(v8SegmentationLoss):
     def __init__(self, model, tal_topk=10, tal_topk2=None):
         super().__init__(model, tal_topk, tal_topk2)
-        self.bbox_loss = WIoULoss(
-            model.model[-1].reg_max, momentum=0.9, delta=3
-        ).to(self.device)
+        self.bbox_loss = WIoULoss(model.model[-1].reg_max, momentum=0.9, delta=3).to(self.device)
 
     def single_mask_loss(self, gt_mask, pred, proto, xyxy, area):
         pred_mask = torch.einsum("in,nhw->ihw", pred, proto)
@@ -928,8 +956,9 @@ class SizeAwareMaskLoss(v8SegmentationLoss):
 
         return bce_loss + dice_loss
 
-    def calculate_segmentation_loss(self, fg_mask, masks, target_gt_idx, target_bboxes,
-                                     batch_idx, proto, pred_masks, imgsz):
+    def calculate_segmentation_loss(
+        self, fg_mask, masks, target_gt_idx, target_bboxes, batch_idx, proto, pred_masks, imgsz
+    ):
         _, _, mask_h, mask_w = proto.shape
         loss = 0
         target_bboxes_normalized = target_bboxes / imgsz[[1, 0, 1, 0]]
@@ -974,8 +1003,9 @@ class DiceSizeAwareLoss(v8SegmentationLoss):
 
         return bce_loss + dice_loss
 
-    def calculate_segmentation_loss(self, fg_mask, masks, target_gt_idx, target_bboxes,
-                                     batch_idx, proto, pred_masks, imgsz):
+    def calculate_segmentation_loss(
+        self, fg_mask, masks, target_gt_idx, target_bboxes, batch_idx, proto, pred_masks, imgsz
+    ):
         _, _, mask_h, mask_w = proto.shape
         loss = 0
         target_bboxes_normalized = target_bboxes / imgsz[[1, 0, 1, 0]]
@@ -1003,9 +1033,7 @@ class DiceSizeAwareLoss(v8SegmentationLoss):
 class FieldDiceLoss(v8SegmentationLoss):
     def __init__(self, model, tal_topk=10, tal_topk2=None):
         super().__init__(model, tal_topk, tal_topk2)
-        self.bbox_loss = FieldDiceBboxLoss(
-            model.model[-1].reg_max, boundary_weight=0.2
-        ).to(self.device)
+        self.bbox_loss = FieldDiceBboxLoss(model.model[-1].reg_max, boundary_weight=0.2).to(self.device)
 
     @staticmethod
     def single_mask_loss(gt_mask, pred, proto, xyxy, area):
@@ -1013,17 +1041,24 @@ class FieldDiceLoss(v8SegmentationLoss):
         pred_sigmoid = pred_mask.sigmoid()
         bce = F.binary_cross_entropy_with_logits(pred_mask, gt_mask, reduction="none")
         bce_loss = (crop_mask(bce, xyxy).mean(dim=(1, 2)) / area).sum()
-        intersection = (crop_mask(pred_sigmoid * gt_mask, xyxy).sum(dim=(1, 2)))
+        intersection = crop_mask(pred_sigmoid * gt_mask, xyxy).sum(dim=(1, 2))
         union = (crop_mask(pred_sigmoid + gt_mask, xyxy).sum(dim=(1, 2))) + 1e-7
         dice_loss = 1 - (2 * intersection / union).mean()
         return bce_loss + dice_loss
 
 
 class FieldSegmentationLoss(v8SegmentationLoss):
-    def __init__(self, model, tal_topk=10, tal_topk2=None,
-                 erosion_ratio=0.2, boundary_bbox_weight=0.5,
-                 boundary_width=3, boundary_mask_weight=2.0,
-                 dynamic_decay_epochs=50):
+    def __init__(
+        self,
+        model,
+        tal_topk=10,
+        tal_topk2=None,
+        erosion_ratio=0.2,
+        boundary_bbox_weight=0.5,
+        boundary_width=3,
+        boundary_mask_weight=2.0,
+        dynamic_decay_epochs=50,
+    ):
         super().__init__(model, tal_topk, tal_topk2)
         self.bbox_loss = BoundaryBboxLoss(
             model.model[-1].reg_max, erosion_ratio=erosion_ratio, boundary_weight=boundary_bbox_weight
@@ -1064,16 +1099,24 @@ class FieldSegmentationLoss(v8SegmentationLoss):
                 torch.tensor(preds["feats"][0].shape[2:], device=self.device, dtype=pred_masks.dtype) * self.stride[0]
             )
             loss[1] = self.calculate_segmentation_loss(
-                fg_mask, masks, target_gt_idx, target_bboxes, batch["batch_idx"].view(-1, 1), proto, pred_masks, imgsz,
+                fg_mask,
+                masks,
+                target_gt_idx,
+                target_bboxes,
+                batch["batch_idx"].view(-1, 1),
+                proto,
+                pred_masks,
+                imgsz,
             )
 
             pred_bboxes = self.bbox_decode(
                 make_anchors(preds["feats"], self.stride, 0.5)[0],
                 preds["boxes"].permute(0, 2, 1).contiguous(),
             )
-            biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask],
-                                erosion_ratio=0.2, xywh=False)
-            target_scores_sum = max(self.bce(preds["scores"].permute(0, 2, 1), torch.zeros_like(preds["scores"].permute(0, 2, 1))).sum(), 1)
+            biou = boundary_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], erosion_ratio=0.2, xywh=False)
+            target_scores_sum = max(
+                self.bce(preds["scores"].permute(0, 2, 1), torch.zeros_like(preds["scores"].permute(0, 2, 1))).sum(), 1
+            )
             weight = torch.ones(fg_mask.sum(), 1, device=self.device)
             loss[5] = ((1.0 - biou) * weight).sum() / target_scores_sum
 
@@ -1082,7 +1125,7 @@ class FieldSegmentationLoss(v8SegmentationLoss):
             boundary_mask_total = 0
             n_boundary = 0
             for i, single_i in enumerate(zip(fg_mask, target_gt_idx, pred_masks, proto, mxyxy, masks)):
-                fg_mask_i, target_gt_idx_i, pred_masks_i, proto_i, mxyxy_i, masks_i = single_i
+                fg_mask_i, target_gt_idx_i, pred_masks_i, proto_i, _mxyxy_i, masks_i = single_i
                 if fg_mask_i.any():
                     mask_idx = target_gt_idx_i[fg_mask_i]
                     if self.overlap:
