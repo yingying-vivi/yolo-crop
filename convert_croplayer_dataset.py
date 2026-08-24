@@ -1,5 +1,5 @@
 """
-convert_croplayer_dataset.py
+convert_croplayer_dataset.py.
 
 将CropLayer shp矢量标注 + Mapbox卫星影像 转换为YOLO实例分割数据集。
 
@@ -25,28 +25,28 @@ convert_croplayer_dataset.py
     --seed        随机种子 (默认: 42)
 """
 
-import os
-import sys
-import math
 import argparse
-import time
-import numpy as np
-from PIL import Image
-import requests
-from pathlib import Path
-from io import BytesIO
-import geopandas as gpd
-import pandas as pd
-from shapely.geometry import box, Polygon, MultiPolygon
-import yaml
+import math
+import os
 import random
+import sys
+import time
+from io import BytesIO
+from pathlib import Path
 
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import requests
+import yaml
+from PIL import Image
+from shapely.geometry import Polygon, box
 
 SEED = 42
 
 
 def lat_lon_to_tile_frac(lat, lon, zoom):
-    n = 2.0 ** zoom
+    n = 2.0**zoom
     x_frac = (lon + 180.0) / 360.0 * n
     lat_rad = math.radians(lat)
     y_frac = (1.0 - math.log(math.tan(lat_rad) + 1.0 / math.cos(lat_rad)) / math.pi) / 2.0 * n
@@ -55,18 +55,18 @@ def lat_lon_to_tile_frac(lat, lon, zoom):
 
 def lat_lon_to_tile(lat, lon, zoom):
     x_frac, y_frac = lat_lon_to_tile_frac(lat, lon, zoom)
-    return int(math.floor(x_frac)), int(math.floor(y_frac))
+    return math.floor(x_frac), math.floor(y_frac)
 
 
 def tile_to_lat_lon(tx, ty, zoom):
-    n = 2.0 ** zoom
+    n = 2.0**zoom
     lon = tx / n * 360.0 - 180.0
     lat = math.degrees(math.atan(math.sinh(math.pi * (1.0 - 2.0 * ty / n))))
     return lat, lon
 
 
 def resolution_m_per_px(zoom, lat, retina=True):
-    m = 156543.03 * math.cos(math.radians(lat)) / (2 ** zoom)
+    m = 156543.03 * math.cos(math.radians(lat)) / (2**zoom)
     if retina:
         m /= 2.0
     return m
@@ -79,13 +79,13 @@ def download_mapbox_tile(z, x, y, token, retina=True, retries=3, delay=0.5):
         try:
             resp = requests.get(url, timeout=30)
             if resp.status_code == 200:
-                return Image.open(BytesIO(resp.content)).convert('RGB')
+                return Image.open(BytesIO(resp.content)).convert("RGB")
             elif resp.status_code == 404:
                 return None
             else:
-                print(f"  tile {z}/{x}/{y} status {resp.status_code}, retry {attempt+1}")
+                print(f"  tile {z}/{x}/{y} status {resp.status_code}, retry {attempt + 1}")
                 time.sleep(delay)
-        except Exception as e:
+        except Exception:
             time.sleep(delay * (attempt + 1))
     return None
 
@@ -98,7 +98,7 @@ def geo_to_mosaic_px(lon, lat, x_min_tile, y_min_tile, zoom, tile_px_size):
 
 
 def assemble_yolo_tile(start_px, start_py, size, cache_dir, x_min_tile, y_min_tile, tile_px_size):
-    canvas = Image.new('RGB', (size, size), (0, 0, 0))
+    canvas = Image.new("RGB", (size, size), (0, 0, 0))
     tx_start = x_min_tile + start_px // tile_px_size
     tx_end = x_min_tile + (start_px + size - 1) // tile_px_size
     ty_start = y_min_tile + start_py // tile_px_size
@@ -106,10 +106,10 @@ def assemble_yolo_tile(start_px, start_py, size, cache_dir, x_min_tile, y_min_ti
 
     for ty in range(ty_start, ty_end + 1):
         for tx in range(tx_start, tx_end + 1):
-            tile_path = cache_dir / f'{tx}_{ty}.png'
+            tile_path = cache_dir / f"{tx}_{ty}.png"
             if not tile_path.exists():
                 continue
-            tile_img = Image.open(tile_path).convert('RGB')
+            tile_img = Image.open(tile_path).convert("RGB")
             tile_mosaic_x = (tx - x_min_tile) * tile_px_size
             tile_mosaic_y = (ty - y_min_tile) * tile_px_size
 
@@ -131,22 +131,20 @@ def assemble_yolo_tile(start_px, start_py, size, cache_dir, x_min_tile, y_min_ti
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Convert CropLayer to YOLO instance segmentation dataset')
-    parser.add_argument('--token', type=str, default=os.environ.get('MAPBOX_TOKEN', ''))
-    parser.add_argument('--shp-dir', type=str,
-                        default='/home/fumu/datadisk/croplayer_beijing/cf_county_beijing')
-    parser.add_argument('--zoom', type=int, default=15)
-    parser.add_argument('--retina', action='store_true', default=True)
-    parser.add_argument('--no-retina', dest='retina', action='store_false')
-    parser.add_argument('--tile-size', type=int, default=640)
-    parser.add_argument('--step', type=int, default=None)
-    parser.add_argument('--min-area', type=int, default=200)
-    parser.add_argument('--min-parcels', type=int, default=50)
-    parser.add_argument('--val-ratio', type=float, default=0.2)
-    parser.add_argument('--output-dir', type=str, default='datasets/croplayer')
-    parser.add_argument('--cache-dir', type=str,
-                        default='/home/fumu/datadisk/croplayer_beijing/tiles')
-    parser.add_argument('--seed', type=int, default=42)
+    parser = argparse.ArgumentParser(description="Convert CropLayer to YOLO instance segmentation dataset")
+    parser.add_argument("--token", type=str, default=os.environ.get("MAPBOX_TOKEN", ""))
+    parser.add_argument("--shp-dir", type=str, default="/home/fumu/datadisk/croplayer_beijing/cf_county_beijing")
+    parser.add_argument("--zoom", type=int, default=15)
+    parser.add_argument("--retina", action="store_true", default=True)
+    parser.add_argument("--no-retina", dest="retina", action="store_false")
+    parser.add_argument("--tile-size", type=int, default=640)
+    parser.add_argument("--step", type=int, default=None)
+    parser.add_argument("--min-area", type=int, default=200)
+    parser.add_argument("--min-parcels", type=int, default=50)
+    parser.add_argument("--val-ratio", type=float, default=0.2)
+    parser.add_argument("--output-dir", type=str, default="datasets/croplayer")
+    parser.add_argument("--cache-dir", type=str, default="/home/fumu/datadisk/croplayer_beijing/tiles")
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
     if not args.token:
@@ -172,7 +170,7 @@ def main():
     print("=" * 60)
 
     shp_dir = Path(args.shp_dir)
-    shp_files = sorted(shp_dir.glob('*.shp'))
+    shp_files = sorted(shp_dir.glob("*.shp"))
     if not shp_files:
         print(f"ERROR: 未找到shp文件 in {shp_dir}")
         sys.exit(1)
@@ -180,7 +178,7 @@ def main():
     gdfs = []
     for shp_file in shp_files:
         gdf = gpd.read_file(shp_file)
-        district = shp_file.stem.split('_')[-1]
+        district = shp_file.stem.split("_")[-1]
         n = len(gdf)
         if n < min_parcels:
             print(f"  跳过 {district}: {n}个地块 (低于阈值{min_parcels})")
@@ -192,7 +190,7 @@ def main():
         print("ERROR: 没有满足条件的区!")
         sys.exit(1)
 
-    gdf_all = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), crs='EPSG:4326')
+    gdf_all = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), crs="EPSG:4326")
     n_parcels_total = len(gdf_all)
     print(f"合计: {n_parcels_total}个地块")
 
@@ -214,7 +212,7 @@ def main():
     coverage_m = yolo_size * m_per_px
     print(f"地理范围: lon [{lon_min:.4f}, {lon_max:.4f}], lat [{lat_min:.4f}, {lat_max:.4f}]")
     print(f"分辨率: ~{m_per_px:.2f} m/pixel @ lat={center_lat:.2f}°")
-    print(f"YOLO子图地面覆盖: {coverage_m:.0f}m × {coverage_m:.0f}m ({coverage_m*coverage_m/1e6:.2f} km²)")
+    print(f"YOLO子图地面覆盖: {coverage_m:.0f}m × {coverage_m:.0f}m ({coverage_m * coverage_m / 1e6:.2f} km²)")
 
     # 计算瓦片范围
     tx_nw, ty_nw = lat_lon_to_tile(lat_max, lon_min, zoom)
@@ -245,7 +243,7 @@ def main():
 
     for idx, row in gdf_all.iterrows():
         geom = row.geometry
-        if geom.geom_type != 'Polygon':
+        if geom.geom_type != "Polygon":
             continue
         coords = list(geom.exterior.coords)
         px_coords = []
@@ -263,14 +261,14 @@ def main():
     print(f"有效polygon(像素坐标): {len(all_polygons_px)}")
     if all_polygons_px:
         areas = [p.area for p in all_polygons_px]
-        print(f"像素面积: min={min(areas):.1f}, median={sorted(areas)[len(areas)//2]:.1f}, max={max(areas):.1f}")
+        print(f"像素面积: min={min(areas):.1f}, median={sorted(areas)[len(areas) // 2]:.1f}, max={max(areas):.1f}")
 
     # ===== Step 3: 下载Mapbox卫星瓦片 =====
     print("\n" + "=" * 60)
     print("Step 3: 下载Mapbox卫星瓦片")
     print("=" * 60)
 
-    cache_subdir = Path(args.cache_dir) / f'z{zoom}' / ('retina' if retina else 'standard')
+    cache_subdir = Path(args.cache_dir) / f"z{zoom}" / ("retina" if retina else "standard")
     cache_subdir.mkdir(parents=True, exist_ok=True)
 
     downloaded = 0
@@ -280,7 +278,7 @@ def main():
 
     for ty in range(y_min_tile, y_max_tile + 1):
         for tx in range(x_min_tile, x_max_tile + 1):
-            cache_path = cache_subdir / f'{tx}_{ty}.png'
+            cache_path = cache_subdir / f"{tx}_{ty}.png"
 
             if cache_path.exists():
                 cached += 1
@@ -291,7 +289,7 @@ def main():
                 img.save(cache_path)
                 downloaded += 1
             else:
-                placeholder = Image.new('RGB', (tile_px_size, tile_px_size), (0, 0, 0))
+                placeholder = Image.new("RGB", (tile_px_size, tile_px_size), (0, 0, 0))
                 placeholder.save(cache_path)
                 failed += 1
 
@@ -306,7 +304,7 @@ def main():
             time.sleep(0.1)
 
     elapsed = time.time() - start_time
-    print(f"  完成: {downloaded}下载, {failed}失败, {cached}缓存, 耗时{elapsed/60:.1f}min")
+    print(f"  完成: {downloaded}下载, {failed}失败, {cached}缓存, 耗时{elapsed / 60:.1f}min")
 
     # ===== Step 4: 生成YOLO数据集 =====
     print("\n" + "=" * 60)
@@ -314,10 +312,10 @@ def main():
     print("=" * 60)
 
     output_dir = Path(args.output_dir)
-    img_train_dir = output_dir / 'images' / 'train'
-    img_val_dir = output_dir / 'images' / 'val'
-    lbl_train_dir = output_dir / 'labels' / 'train'
-    lbl_val_dir = output_dir / 'labels' / 'val'
+    img_train_dir = output_dir / "images" / "train"
+    img_val_dir = output_dir / "images" / "val"
+    lbl_train_dir = output_dir / "labels" / "train"
+    lbl_val_dir = output_dir / "labels" / "val"
 
     for d in [img_train_dir, img_val_dir, lbl_train_dir, lbl_val_dir]:
         d.mkdir(parents=True, exist_ok=True)
@@ -345,12 +343,11 @@ def main():
 
     tile_box = box(0, 0, yolo_size, yolo_size)
     img_count = 0
-    label_stats = {'total_labels': 0, 'total_images': 0, 'avg_labels': 0}
+    label_stats = {"total_labels": 0, "total_images": 0, "avg_labels": 0}
 
     for key in sorted(tile_assignments.keys()):
         gx, gy = key
         is_val = key in val_keys
-        split = 'val' if is_val else 'train'
 
         img = assemble_yolo_tile(gx, gy, yolo_size, cache_subdir, x_min_tile, y_min_tile, tile_px_size)
 
@@ -374,11 +371,11 @@ def main():
                 continue
 
             polys_to_write = []
-            if clipped.geom_type == 'Polygon':
+            if clipped.geom_type == "Polygon":
                 polys_to_write.append(clipped)
-            elif clipped.geom_type == 'MultiPolygon':
+            elif clipped.geom_type == "MultiPolygon":
                 for sub in clipped.geoms:
-                    if sub.geom_type == 'Polygon' and not sub.is_empty:
+                    if sub.geom_type == "Polygon" and not sub.is_empty:
                         polys_to_write.append(sub)
             else:
                 continue
@@ -400,33 +397,35 @@ def main():
                 for x_v, y_v in coords_out:
                     nx = max(0.0, min(1.0, x_v / yolo_size))
                     ny = max(0.0, min(1.0, y_v / yolo_size))
-                    norm_coords.append(f'{nx:.6f} {ny:.6f}')
+                    norm_coords.append(f"{nx:.6f} {ny:.6f}")
 
-                label_lines.append('0 ' + ' '.join(norm_coords))
+                label_lines.append("0 " + " ".join(norm_coords))
 
         if not label_lines:
             continue
 
-        fname = f'croplayer_{img_count:04d}'
+        fname = f"croplayer_{img_count:04d}"
         img_dir = img_val_dir if is_val else img_train_dir
         lbl_dir = lbl_val_dir if is_val else lbl_train_dir
 
-        img.save(img_dir / f'{fname}.jpg', quality=95)
-        with open(lbl_dir / f'{fname}.txt', 'w') as f:
-            f.write('\n'.join(label_lines))
+        img.save(img_dir / f"{fname}.jpg", quality=95)
+        with open(lbl_dir / f"{fname}.txt", "w") as f:
+            f.write("\n".join(label_lines))
 
-        label_stats['total_labels'] += len(label_lines)
-        label_stats['total_images'] += 1
+        label_stats["total_labels"] += len(label_lines)
+        label_stats["total_images"] += 1
         img_count += 1
 
         if img_count % 50 == 0:
             print(f"  已保存 {img_count} 张子图...")
 
-    label_stats['avg_labels'] = label_stats['total_labels'] / label_stats['total_images'] if label_stats['total_images'] > 0 else 0
+    label_stats["avg_labels"] = (
+        label_stats["total_labels"] / label_stats["total_images"] if label_stats["total_images"] > 0 else 0
+    )
 
-    n_train_imgs = len(list(img_train_dir.glob('*.jpg')))
-    n_val_imgs = len(list(img_val_dir.glob('*.jpg')))
-    print(f"\n数据集统计:")
+    n_train_imgs = len(list(img_train_dir.glob("*.jpg")))
+    n_val_imgs = len(list(img_val_dir.glob("*.jpg")))
+    print("\n数据集统计:")
     print(f"  Train图像: {n_train_imgs}")
     print(f"  Val图像: {n_val_imgs}")
     print(f"  总标注数: {label_stats['total_labels']}")
@@ -438,23 +437,23 @@ def main():
     print("=" * 60)
 
     data_yaml = {
-        'path': str(output_dir.resolve()),
-        'train': 'images/train',
-        'val': 'images/val',
-        'nc': 1,
-        'names': ['cropland'],
+        "path": str(output_dir.resolve()),
+        "train": "images/train",
+        "val": "images/val",
+        "nc": 1,
+        "names": ["cropland"],
     }
 
-    yaml_path = output_dir / 'data.yaml'
-    with open(yaml_path, 'w') as f:
+    yaml_path = output_dir / "data.yaml"
+    with open(yaml_path, "w") as f:
         yaml.dump(data_yaml, f, default_flow_style=False, allow_unicode=True)
 
     print(f"data.yaml: {yaml_path}")
     print(f"\n完成! 数据集已创建在 {output_dir}")
-    print(f"下一步:")
-    print(f"  python train_croplayer_baseline.py")
-    print(f"  python train_croplayer_yolo_star.py")
+    print("下一步:")
+    print("  python train_croplayer_baseline.py")
+    print("  python train_croplayer_yolo_star.py")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,4 +1,5 @@
 import torch
+
 from ultralytics import YOLO
 from ultralytics.utils.torch_utils import intersect_dicts
 
@@ -23,17 +24,17 @@ def load_with_partial(model, pretrained_path):
 
     n_matched = len(matched)
     total = len(model_sd)
-    print(f"Weight loading: {n_matched}/{total} ({n_matched/total*100:.1f}%)")
+    print(f"Weight loading: {n_matched}/{total} ({n_matched / total * 100:.1f}%)")
     return model
 
 
 def train_fgfd_v26_star_deep():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] YOLOv26 ablation: StarBlock deep backbone only")
-    print(f"  Backbone layers 6,8: C3k2_Star (StarBlock, shortcut=False)")
-    print(f"  Head: standard v26-seg (no ECA, no custom loss)")
-    print(f"  end2end=True, reg_max=1")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] YOLOv26 ablation: StarBlock deep backbone only")
+    print("  Backbone layers 6,8: C3k2_Star (StarBlock, shortcut=False)")
+    print("  Head: standard v26-seg (no ECA, no custom loss)")
+    print("  end2end=True, reg_max=1")
+    print(f"{'=' * 60}\n")
 
     model = YOLO(YAML)
     load_with_partial(model.model, PRETRAINED)

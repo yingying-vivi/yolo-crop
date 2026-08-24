@@ -1,5 +1,6 @@
-from ultralytics import YOLO
 import torch
+
+from ultralytics import YOLO
 from ultralytics.utils.torch_utils import intersect_dicts
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/fgfd_1cls/data.yaml"
@@ -14,35 +15,35 @@ PROJECT = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/runs/segment"
 
 SHIFT_MAP = {17: 18, 18: 19, 19: 20, 20: 22, 21: 23, 22: 24, 23: 26}
 
-AUG_ARGS = dict(
-    mosaic=0.5,
-    close_mosaic=20,
-    mixup=0.0,
-    cutmix=0.0,
-    auto_augment=None,
-    erasing=0.0,
-    hsv_h=0.015,
-    hsv_s=0.5,
-    hsv_v=0.3,
-    degrees=10,
-    translate=0.1,
-    scale=0.5,
-    fliplr=0.5,
-    flipud=0.5,
-)
+AUG_ARGS = {
+    "mosaic": 0.5,
+    "close_mosaic": 20,
+    "mixup": 0.0,
+    "cutmix": 0.0,
+    "auto_augment": None,
+    "erasing": 0.0,
+    "hsv_h": 0.015,
+    "hsv_s": 0.5,
+    "hsv_v": 0.3,
+    "degrees": 10,
+    "translate": 0.1,
+    "scale": 0.5,
+    "fliplr": 0.5,
+    "flipud": 0.5,
+}
 
-TRAIN_ARGS = dict(
-    lr0=0.002,
-    lrf=0.01,
-    cos_lr=True,
-    warmup_epochs=5,
-    warmup_bias_lr=0.01,
-    patience=200,
-    dropout=0.2,
-    overlap_mask=True,
-    mask_ratio=4,
-    weight_decay=0.001,
-)
+TRAIN_ARGS = {
+    "lr0": 0.002,
+    "lrf": 0.01,
+    "cos_lr": True,
+    "warmup_epochs": 5,
+    "warmup_bias_lr": 0.01,
+    "patience": 200,
+    "dropout": 0.2,
+    "overlap_mask": True,
+    "mask_ratio": 4,
+    "weight_decay": 0.001,
+}
 
 
 def load_with_shift(model, pretrained_path, shift_map, verbose=True):
@@ -58,7 +59,7 @@ def load_with_shift(model, pretrained_path, shift_map, verbose=True):
         new_prefix = f"model.{new_idx}."
         for key, value in pretrained_sd.items():
             if key.startswith(old_prefix):
-                new_key = new_prefix + key[len(old_prefix):]
+                new_key = new_prefix + key[len(old_prefix) :]
                 if new_key in model_sd and model_sd[new_key].shape == value.shape:
                     remapped[new_key] = value
     if remapped:
@@ -70,9 +71,9 @@ def load_with_shift(model, pretrained_path, shift_map, verbose=True):
 
 
 def train_eca_v4():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Training YOLO11-ECA v4 (freeze backbone + imgsz=640)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Training YOLO11-ECA v4 (freeze backbone + imgsz=640)")
+    print(f"{'=' * 60}\n")
     model = YOLO(ECA_YAML)
     load_with_shift(model.model, PRETRAINED, SHIFT_MAP)
     results = model.train(
