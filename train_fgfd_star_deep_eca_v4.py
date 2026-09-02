@@ -1,5 +1,6 @@
-from ultralytics import YOLO
 import torch
+
+from ultralytics import YOLO
 from ultralytics.utils.torch_utils import intersect_dicts
 
 DATA_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/fgfd_1cls/data.yaml"
@@ -34,7 +35,7 @@ def load_with_shift(model, pretrained_path, shift_map):
         new_prefix = f"model.{new_idx}."
         for key, value in pretrained_sd.items():
             if key.startswith(old_prefix):
-                new_key = new_prefix + key[len(old_prefix):]
+                new_key = new_prefix + key[len(old_prefix) :]
                 if new_key in model_sd and model_sd[new_key].shape == value.shape:
                     remapped[new_key] = value
 
@@ -45,18 +46,18 @@ def load_with_shift(model, pretrained_path, shift_map):
         n_matched = n_direct
 
     total = len(model_sd)
-    print(f"Weight loading: {n_matched}/{total} ({n_matched/total*100:.1f}%)")
+    print(f"Weight loading: {n_matched}/{total} ({n_matched / total * 100:.1f}%)")
     print(f"  Direct: {n_direct}, Shift-remapped: {len(remapped)}")
     return model
 
 
 def train_star_deep_eca_v4():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Star-Deep + ECA (freeze=0)")
-    print(f"  Backbone: shallow C3k2 (pretrained), deep C3k2_Star (StarBlock)")
-    print(f"  Head: C3k2 + ECA on P3/P4/P5")
-    print(f"  freeze=0 so StarBlock and ECA can train")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Star-Deep + ECA (freeze=0)")
+    print("  Backbone: shallow C3k2 (pretrained), deep C3k2_Star (StarBlock)")
+    print("  Head: C3k2 + ECA on P3/P4/P5")
+    print("  freeze=0 so StarBlock and ECA can train")
+    print(f"{'=' * 60}\n")
 
     model = YOLO(YAML)
     load_with_shift(model.model, PRETRAINED, SHIFT_MAP)
