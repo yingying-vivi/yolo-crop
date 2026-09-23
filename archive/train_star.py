@@ -11,9 +11,9 @@ MODEL_YAML = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/ultralytics/cfg/m
 
 
 def train_star_model():
-    print(f"\n{'='*60}")
-    print(f"Training YOLO11-StarBlock with pretrained weights")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("Training YOLO11-StarBlock with pretrained weights")
+    print(f"{'=' * 60}\n")
     model = YOLO(MODEL_YAML)
     model.load(PRETRAINED)
     results = model.train(
@@ -28,7 +28,7 @@ def train_star_model():
         workers=8,
         seed=42,
     )
-    print(f"\nYOLO11-StarBlock (pretrained) training complete!")
+    print("\nYOLO11-StarBlock (pretrained) training complete!")
     return results
 
 
