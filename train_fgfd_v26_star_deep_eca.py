@@ -1,4 +1,5 @@
 import torch
+
 from ultralytics import YOLO
 from ultralytics.utils.torch_utils import intersect_dicts
 
@@ -38,7 +39,7 @@ def load_with_shift(model, pretrained_path, shift_map):
         new_prefix = f"model.{new_idx}."
         for key, value in pretrained_sd.items():
             if key.startswith(old_prefix):
-                new_key = new_prefix + key[len(old_prefix):]
+                new_key = new_prefix + key[len(old_prefix) :]
                 if new_key in model_sd and model_sd[new_key].shape == value.shape:
                     remapped[new_key] = value
 
@@ -49,19 +50,19 @@ def load_with_shift(model, pretrained_path, shift_map):
         n_matched = n_direct
 
     total = len(model_sd)
-    print(f"Weight loading: {n_matched}/{total} ({n_matched/total*100:.1f}%)")
+    print(f"Weight loading: {n_matched}/{total} ({n_matched / total * 100:.1f}%)")
     print(f"  Direct: {n_direct}, Shift-remapped: {len(remapped)}")
     return model
 
 
 def train_fgfd_v26_star_deep_eca():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] YOLOv26 ablation: StarBlock deep + ECA")
-    print(f"  Backbone layers 6,8: C3k2_Star (StarBlock)")
-    print(f"  Head: ECA after P3/P4/P5 C3k2 (3 params each)")
-    print(f"  Standard v26 loss (no WIoU, no size-aware, no Dice)")
-    print(f"  end2end=True, reg_max=1")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] YOLOv26 ablation: StarBlock deep + ECA")
+    print("  Backbone layers 6,8: C3k2_Star (StarBlock)")
+    print("  Head: ECA after P3/P4/P5 C3k2 (3 params each)")
+    print("  Standard v26 loss (no WIoU, no size-aware, no Dice)")
+    print("  end2end=True, reg_max=1")
+    print(f"{'=' * 60}\n")
 
     model = YOLO(YAML)
     load_with_shift(model.model, PRETRAINED, SHIFT_MAP)

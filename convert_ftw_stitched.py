@@ -1,9 +1,10 @@
 import os
+from pathlib import Path
+
+import cv2
 import numpy as np
 from PIL import Image
-from pathlib import Path
 from scipy import ndimage
-import cv2
 
 SRC_DIR = Path("/home/fumu/datadisk/split_ftw_4")
 OUT_DIR = Path("/home/fumu/xyy/ultralytics-crop/ultralytics-crop/datasets/ftw_stitched")
@@ -78,8 +79,7 @@ def convert_label(mask, img_h, img_w, out_txt_path):
     return kept
 
 
-def process_stitched_group(src_img_dir, src_lbl_dir, out_img_dir, out_lbl_dir,
-                           stems, parent_row_tl, col, grid_id):
+def process_stitched_group(src_img_dir, src_lbl_dir, out_img_dir, out_lbl_dir, stems, parent_row_tl, col, grid_id):
     imgs_rgba = []
     labels = []
     for stem in stems:
@@ -139,7 +139,7 @@ def stitch_split(split):
     out_lbl_dir.mkdir(parents=True, exist_ok=True)
 
     index = build_tile_index(split)
-    grid_ids = sorted(set(k[0] for k in index))
+    grid_ids = sorted({k[0] for k in index})
 
     used_tiles = set()
     total_stitched = 0
@@ -147,7 +147,7 @@ def stitch_split(split):
     total_instances = 0
 
     for grid_id in grid_ids:
-        rows_by_grid = sorted(set(k[1] for k in index if k[0] == grid_id))
+        rows_by_grid = sorted({k[1] for k in index if k[0] == grid_id})
 
         for r_idx in range(len(rows_by_grid) - 1):
             parent_row_tl = rows_by_grid[r_idx]
@@ -169,8 +169,14 @@ def stitch_split(split):
                     used_tiles.add(p)
 
                 n = process_stitched_group(
-                    src_img_dir, src_lbl_dir, out_img_dir, out_lbl_dir,
-                    stems, parent_row_tl, col, grid_id,
+                    src_img_dir,
+                    src_lbl_dir,
+                    out_img_dir,
+                    out_lbl_dir,
+                    stems,
+                    parent_row_tl,
+                    col,
+                    grid_id,
                 )
                 total_stitched += 1
                 total_instances += n
@@ -178,13 +184,19 @@ def stitch_split(split):
     for key, stem in index.items():
         if key not in used_tiles:
             n = process_single_tile(
-                src_img_dir, src_lbl_dir, out_img_dir, out_lbl_dir, stem,
+                src_img_dir,
+                src_lbl_dir,
+                out_img_dir,
+                out_lbl_dir,
+                stem,
             )
             total_single += 1
             total_instances += n
 
-    print(f"[{split}] {total_stitched} stitched 2x2 + {total_single} single = "
-          f"{total_stitched + total_single} total, {total_instances} instances")
+    print(
+        f"[{split}] {total_stitched} stitched 2x2 + {total_single} single = "
+        f"{total_stitched + total_single} total, {total_instances} instances"
+    )
     return total_stitched, total_single
 
 
@@ -204,7 +216,7 @@ names: ['{CLASS_NAME}']
     with open(yaml_path, "w") as f:
         f.write(data_yaml)
     print(f"\ndata.yaml saved to {yaml_path}")
-    print(f"\nResults per split:")
+    print("\nResults per split:")
     for split, (stitched, single) in counts.items():
         print(f"  {split}: {stitched} stitched 2x2 + {single} single = {stitched + single} total")
 
