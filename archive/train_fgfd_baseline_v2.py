@@ -11,9 +11,9 @@ PROJECT = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/runs/segment"
 
 
 def train_baseline_v2():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Training YOLO11 baseline v3 (nc=1)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Training YOLO11 baseline v3 (nc=1)")
+    print(f"{'=' * 60}\n")
     model = YOLO(PRETRAINED)
     results = model.train(
         data=DATA_YAML,

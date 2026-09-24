@@ -1,8 +1,8 @@
 import os
-import shutil
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
 from PIL import Image
 
 FGFD_ROOT = Path("/home/fumu/conda_disk/baiduwangpan/Fine-Grained Farmland Dataset ")
@@ -114,7 +114,7 @@ def convert_split(split_name):
         converted += 1
 
         if (i + 1) % 500 == 0:
-            print(f"  [{split_name}] {i+1}/{total} processed...")
+            print(f"  [{split_name}] {i + 1}/{total} processed...")
 
     print(f"  [{split_name}] Done: {converted} converted, {skipped} skipped")
     print(f"  [{split_name}] Total instances: {total_instances}")

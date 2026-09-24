@@ -11,10 +11,10 @@ PROJECT = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/runs/segment"
 
 
 def train_baseline_freeze6_v4():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Baseline freeze=6 (freeze shallow 6 layers, standard C3k2)")
-    print(f"  Control experiment for star-deep freeze=6 comparison")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Baseline freeze=6 (freeze shallow 6 layers, standard C3k2)")
+    print("  Control experiment for star-deep freeze=6 comparison")
+    print(f"{'=' * 60}\n")
 
     model = YOLO(PRETRAINED)
 
