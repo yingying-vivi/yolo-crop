@@ -12,11 +12,11 @@ PROJECT = "/home/fumu/xyy/ultralytics-crop/ultralytics-crop/runs/segment"
 
 
 def train_star_deep_freeze6_v4():
-    print(f"\n{'='*60}")
-    print(f"[FGFD] Star-Deep freeze=6: StarBlock at deep backbone (layer 6,8)")
-    print(f"  freeze=6: freeze layer0-5 (shallow, pretrained weights)")
-    print(f"  unfreeze layer6+ (deep StarBlock can train)")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("[FGFD] Star-Deep freeze=6: StarBlock at deep backbone (layer 6,8)")
+    print("  freeze=6: freeze layer0-5 (shallow, pretrained weights)")
+    print("  unfreeze layer6+ (deep StarBlock can train)")
+    print(f"{'=' * 60}\n")
 
     model = YOLO(YAML)
     model.load(PRETRAINED)
